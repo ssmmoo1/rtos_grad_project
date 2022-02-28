@@ -1,0 +1,18 @@
+# ignore all build objects
+**/*.o
+**/*.crf
+**/*.lst
+**/*.d
+**/*.axf
+**/*.htm
+**/*.lnp
+**/*.map
+**/*.dep
+**/*.lst
+**/RTE/**/*
+
+# ignore Keil file(s)
+# project screen layout file (where stuff is in the GUI)
+**/*.uvguix.*
+# project options file (settings for debugger, trace configuration, breakpoints, currently open files, etc.
+**/*.uvoptx
