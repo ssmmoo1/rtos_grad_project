@@ -125,13 +125,13 @@ void DAS(void){
 void ButtonWork(void){
   uint32_t myId = OS_Id(); 
   PD1 ^= 0x02;
-  ST7735_Message(1,0,"NumCreated   =",NumCreated); 
+  ST7735_Message(1,0,"NumCreated   =",NumCreated, true); 
   PD1 ^= 0x02;
   OS_Sleep(50);     // set this to sleep for 50msec
-  ST7735_Message(1,1,"CPUUtil 0.01%=",CPUUtil);
-  ST7735_Message(1,2,"DataLost     =",DataLost);
-  ST7735_Message(1,3,"Jitter 0.1us =",MaxJitter);
-  ST7735_Message(1,4,"CPUUtil 0.01%=",CPUUtil);
+  ST7735_Message(1,1,"CPUUtil 0.01%=",CPUUtil, true);
+  ST7735_Message(1,2,"DataLost     =",DataLost, true);
+  ST7735_Message(1,3,"Jitter 0.1us =",MaxJitter, true);
+  ST7735_Message(1,4,"CPUUtil 0.01%=",CPUUtil, true);
   PD1 ^= 0x02;
   OS_Kill();  // done, OS does not return from a Kill
 } 
@@ -223,17 +223,17 @@ void Consumer(void){
 void Display(void){ 
   uint32_t data,voltage,distance;
   uint32_t myId = OS_Id();
-  ST7735_Message(0,1,"Run length = ",(RUNLENGTH)/FS); // top half used for Display
+  ST7735_Message(0,1,"Run length = ",(RUNLENGTH)/FS, true); // top half used for Display
   while(NumSamples < RUNLENGTH) { 
     data = OS_MailBox_Recv();
     voltage = 3000*data/4095;   // calibrate your device so voltage is in mV
     distance = IRDistance_Convert(data,1); // you will calibrate this in Lab 6
     PD3 = 0x08;
-    ST7735_Message(0,2,"v(mV) =",voltage);  
-    ST7735_Message(0,3,"d(mm) =",distance);  
+    ST7735_Message(0,2,"v(mV) =",voltage, true);  
+    ST7735_Message(0,3,"d(mm) =",distance, true);  
     PD3 = 0x00;
   } 
-  ST7735_Message(0,4,"Num samples =",NumSamples);  
+  ST7735_Message(0,4,"Num samples =",NumSamples, true);  
   OS_Kill();  // done
 } 
 

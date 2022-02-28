@@ -23,7 +23,7 @@
 
 static const uint8_t MAX_TOKENS = 6;
 static const uint8_t MAX_COMMAND_LENGTH = 30;
-uint32_t NumCreated;
+extern uint32_t NumCreated;
 int32_t MaxJitter;
 
 // Print jitter histogram
