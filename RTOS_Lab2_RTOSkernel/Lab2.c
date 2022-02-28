@@ -46,6 +46,8 @@
 // comment out to disable LED "profiling"
 #define LED_DEBUG
 
+uint32_t NumCreated;
+
 //*********Prototype for FFT in cr4_fft_64_stm32.s, STMicroelectronics
 void cr4_fft_64_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
 //*********Prototype for PID in PID_stm32.s, STMicroelectronics

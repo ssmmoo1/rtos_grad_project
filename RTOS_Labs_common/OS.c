@@ -32,6 +32,10 @@ void ContextSwitch(void);
 // system time variable
 static uint32_t systemTime;
 
+// when clear MsTime is called, it resets Ms time, but not systick current register
+// keep track of what current register was, so os_time is reasonably accurate across calls to os_time
+static uint32_t reloadError = 0;
+
 // pool of TCBs to draw from
 #define MAX_THREADS 24
 static TCBType TCBPool[MAX_THREADS];
@@ -104,9 +108,9 @@ void OS_Scheduler(void)
 
 void SysTick_Init(unsigned long period){
   NVIC_ST_CTRL_R = 0;                   // disable SysTick during setup
-  NVIC_ST_RELOAD_R = period;            // set reload value
+  NVIC_ST_RELOAD_R = (period-1);            // set reload value
   NVIC_ST_CURRENT_R = 0;                // any write to current clears it
-	NVIC_SYS_PRI3_R = (NVIC_SYS_PRI3_R&0x00FFFFFF)|0x40000000; // priority 2
+	NVIC_SYS_PRI3_R = (NVIC_SYS_PRI3_R&0x00FFFFFF)|0xC0000000; // priority 6 (just above PendSv)
                                         // enable SysTick with core clock and interrupts
   NVIC_ST_CTRL_R = NVIC_ST_CTRL_ENABLE | NVIC_ST_CTRL_CLK_SRC | NVIC_ST_CTRL_INTEN;
 }
@@ -125,7 +129,7 @@ void OS_Init(void){
 	ST7735_InitR(INITR_REDTAB); // LCD initialization
 	DisableInterrupts();
 	
-	// make PendSV lowest priority
+	// make PendSV lowest priority (7)
 	NVIC_SYS_PRI3_R |= 0x00E00000;
 	
 	// mark all TCBs as invalid on startup
@@ -641,8 +645,10 @@ uint32_t OS_MailBox_Recv(void){
 //   this function and OS_TimeDifference have the same resolution and precision 
 uint32_t OS_Time(void){
   // put Lab 2 (and beyond) solution here
-
-  return 0; // replace this line with solution
+	long sr = StartCritical();
+	uint32_t retval = systemTime * (NVIC_ST_RELOAD_R + 1) + (NVIC_ST_RELOAD_R - NVIC_ST_CURRENT_R) - reloadError;
+	EndCritical(sr);
+  return retval;
 };
 
 // ******** OS_TimeDifference ************
@@ -654,8 +660,7 @@ uint32_t OS_Time(void){
 //   this function and OS_Time have the same resolution and precision 
 uint32_t OS_TimeDifference(uint32_t start, uint32_t stop){
   // put Lab 2 (and beyond) solution here
-
-  return 0; // replace this line with solution
+  return (stop - start); // return delta scaled by bus frequency to 0.1us
 };
 
 
@@ -692,6 +697,7 @@ static void OS_IncrementMsTime(void) {
 void OS_ClearMsTime(void){
   // put Lab 1 solution here
 	systemTime = 0;
+	reloadError = NVIC_ST_RELOAD_R - NVIC_ST_CURRENT_R;
 	/*
 	WideTimer0A_Init(OS_IncrementMsTime, 
 									 80000, 							// Bus freq is 80 MHz, so 80000 reload -> 1 ms period
@@ -729,7 +735,8 @@ void OS_Launch(uint32_t theTimeSlice){
 	else
 	{
 		// initialize Systick for preemptive scheduling
-		SysTick_Init(80000); // 10 ms reload value
+		SysTick_Init(80000); // 1 ms reload value
+		OS_ClearMsTime();
 		StartOS();
 	}
     
