@@ -18,18 +18,32 @@
 #include "../RTOS_Labs_common/eFile.h"
 #include "ADC.h"
 #include "../inc/Launchpad.h"
+#include "../RTOS_Labs_common/Interpreter.h"
+
 
 #define PD1  (*((volatile uint32_t *)0x40007008))
 
 static const uint8_t MAX_TOKENS = 6;
 static const uint8_t MAX_COMMAND_LENGTH = 30;
-extern uint32_t NumCreated;
-int32_t MaxJitter;
+uint32_t NumCreated;
+
 
 // Print jitter histogram
 void Jitter(int32_t MaxJitter, uint32_t const JitterSize, uint32_t JitterHistogram[]){
-  // write this for Lab 3 (the latest)
+  UART_OutString("\n\r Max Jitter: ");
+	UART_OutUDec(MaxJitter);
+	UART_OutString("\n\r");
 	
+	for(uint32_t i = 0; i < JitterSize; i++)
+	{
+		UART_OutUDec(i);
+		UART_OutChar(' ');
+		for(uint32_t y = 0; y < JitterHistogram[i]; y++)
+		{
+			UART_OutChar('|');
+		}
+		UART_OutString("\n\r");
+	}
 }
 
 // helper function for checking if two strings are equal
@@ -178,8 +192,11 @@ static void handleCommand(char *inString) {
 	
 	else if(strEquals(commandTokens[0], "jitter"))
 	{
-		UART_OutString("jitter: ");
-		UART_OutUDec(MaxJitter);
+		UART_OutString("Max Jitter 1: ");
+		UART_OutUDec(MaxJitter_1);
+		UART_OutString("\n\r");
+		UART_OutString("Max Jitter 2: ");
+		UART_OutUDec(MaxJitter_2);
 	}
 	
 	else if(strEquals(commandTokens[0], "threads"))

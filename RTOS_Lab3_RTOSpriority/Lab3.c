@@ -51,7 +51,7 @@ void cr4_fft_64_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
 //*********Prototype for PID in PID_stm32.s, STMicroelectronics
 short PID_stm32(short Error, short *Coeff);
 
-uint32_t NumCreated;   // number of foreground threads created
+//uint32_t NumCreated;   // number of foreground threads created
 uint32_t IdleCount;    // CPU idle counter
 uint32_t PIDWork;      // current number of PID calculations finished
 uint32_t FilterWork;   // number of digital filter calculations finished
@@ -71,9 +71,6 @@ uint32_t CPUUtil;       // calculated CPU utilization (in 0.01%)
 
 //---------------------User debugging-----------------------
 uint32_t DataLost;     // data sent by Producer, but not received by Consumer
-extern int32_t MaxJitter;             // largest time jitter between interrupts in usec
-extern uint32_t const JitterSize;
-uint32_t JitterHistogram[];
 
 #define PD0  (*((volatile uint32_t *)0x40007004))
 #define PD1  (*((volatile uint32_t *)0x40007008))
@@ -105,6 +102,7 @@ void PortD_Init(void){
 uint32_t DASoutput;
 void DAS(void){ 
   uint32_t input;  
+	OS_Jitter_1(PERIOD1);
   if(NumSamples < RUNLENGTH){   // finite time run
     PD0 ^= 0x01;
     input = ADC_In();           // channel set when calling ADC_Init
@@ -131,8 +129,9 @@ void ButtonWork(void){
   OS_Sleep(50);     // set this to sleep for 50msec
   ST7735_Message(1,1,"CPUUtil 0.01%=",CPUUtil, true);
   ST7735_Message(1,2,"DataLost     =",DataLost, true);
-  ST7735_Message(1,3,"Jitter 0.1us =",MaxJitter, true);
-  ST7735_Message(1,4,"CPUUtil 0.01%=",CPUUtil, true);
+  ST7735_Message(1,3,"Jitter_1 0.1us =",MaxJitter_1, true);
+	ST7735_Message(1,4,"Jitter_2 0.1us =",MaxJitter_2, true);
+  ST7735_Message(1,5,"CPUUtil 0.01%=",CPUUtil, true);
   PD1 ^= 0x02;
   OS_Kill();  // done, OS does not return from a Kill
 } 
@@ -257,6 +256,7 @@ short Coeff[3] = { // PID coefficients
 };    
 short Actuator;
 void PID(void){ 
+	OS_Jitter_2(PERIOD2);
   static short err = -1000;  // speed error, range -100 to 100 RPM
   Actuator = PID_stm32(err,Coeff)/256;
   err++; 
@@ -322,7 +322,8 @@ void Idle(void){
 int realmain(void){ // realmain
   OS_Init();        // initialize, disable interrupts
   PortD_Init();     // debugging profile
-  MaxJitter = 0;    // in 1us units
+  MaxJitter_1 = 0;    // in 1us units
+	MaxJitter_2 = 0;    // in 1us units
   DataLost = 0;     // lost data between producer and consumer
   IdleCount = 0;
   CPUUtil = 0;
@@ -653,12 +654,12 @@ void Thread6(void){  // foreground thread
     PD0 ^= 0x01;        // debugging toggle bit 0  
   }
 }
-extern void Jitter(int32_t, uint32_t const, uint32_t []); // prints jitter information (write this)
+//extern void Jitter(int32_t, uint32_t const, uint32_t []); // prints jitter information (write this)
 void Thread7(void){  // foreground thread
   UART_OutString("\n\rEE345M/EE380L, Lab 3 Procedure 2\n\r");
   OS_Sleep(5000);   // 10 seconds        
-  Jitter(MaxJitter, JitterSize, JitterHistogram);  // print jitter information
-  //Jitter(MaxJitter2, JitterSize2, JitterHistogram2);  // print jitter of second thread
+  Jitter(MaxJitter_1, JITTERSIZE, JitterHistogram_1);  // print jitter information
+  Jitter(MaxJitter_2, JITTERSIZE, JitterHistogram_2);  // print jitter of second thread
   UART_OutString("\n\r\n\r");
   OS_Kill();
 }
@@ -666,6 +667,7 @@ void Thread7(void){  // foreground thread
 #define counts1us 10    // number of OS_Time counts per 1us
 void TaskA(void){       // called every {1000, 2990us} in background
   PD1 = 0x02;      // debugging profile  
+	OS_Jitter_1(TIME_1MS);
   CountA++;
   PseudoWork(workA*counts1us); //  do work (100ns time resolution)
   PD1 = 0x00;      // debugging profile  
@@ -673,7 +675,8 @@ void TaskA(void){       // called every {1000, 2990us} in background
 #define workB 250       // 250 us work in Task B
 void TaskB(void){       // called every pB in background
   PD2 = 0x04;      // debugging profile  
-  CountB++;
+  OS_Jitter_2(TIME_1MS);
+	CountB++;
   PseudoWork(workB*counts1us); //  do work (100ns time resolution)
   PD2 = 0x00;      // debugging profile  
 }

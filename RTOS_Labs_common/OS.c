@@ -20,9 +20,8 @@
 #include "../inc/ADCT0ATrigger.h"
 #include "../RTOS_Labs_common/UART0int.h"
 #include "../RTOS_Labs_common/eFile.h"
+#include "../inc/WTimer1A.h"
 
-#define JITTER_PERIOD_1 2000
-#define JITTER_PERIOD_2 2000
 
 void OS_UpdateSleep(void);
 void OS_IncrementMsTime(void);
@@ -47,10 +46,11 @@ static TCBType TCBPool[MAX_THREADS];
 TCBType *tcbReadyList = NULL;
 
 // Performance Measurements 
-#define JITTERSIZE 64
 uint32_t const JitterSize=JITTERSIZE;
 uint32_t JitterHistogram_1[JITTERSIZE]={0,};
 uint32_t JitterHistogram_2[JITTERSIZE]={0,};
+uint32_t MaxJitter_1 = 0;
+uint32_t MaxJitter_2 = 0;
 
 //Global Fifo setup
 //uses 2 semaphore implementation. ASSUMES PUTS WILL NOT BE INTERRUPTED not sure if this is safe but I think it is.
@@ -73,7 +73,6 @@ uint32_t OS_Mail_data;
   SysTick interrupt happens every 10 ms
   used for preemptive thread switch
  *------------------------------------------------------------------------------*/
-#define PD3  (*((volatile uint32_t *)0x40007020))
 void SysTick_Handler(void) {
 	// PD3 ^= 0x08;
 	
@@ -119,19 +118,31 @@ void SysTick_Init(unsigned long period){
   NVIC_ST_CTRL_R = NVIC_ST_CTRL_ENABLE | NVIC_ST_CTRL_CLK_SRC | NVIC_ST_CTRL_INTEN;
 }
 
-uint32_t MaxJitter_1;
-void OS_Jitter_1(void){ 
-  static uint32_t LastTime;  // time at previous ADC sample
-  uint32_t thisTime;              // time at current ADC sample
+/*
+*Place this function call into a periodic task and pass in the expected period
+*Each time this function is called it will calculate the time difference with the last time it was called
+*The jitter is calculated the difference from the expected period and put into the jitter array
+*/
+
+void OS_Jitter_1(uint32_t expected_period){ 
+  static uint32_t LastTime = 0;  // time at previous ADC sample
+	//only execute on first call to setup LastTime
+	if(LastTime == 0)
+	{
+		LastTime = OS_Time();
+		return;
+	}
+	
+  uint32_t thisTime;              // time at current function call
   long jitter;                    // time between measured and expected, in us
 
 	thisTime = OS_Time();       // current time, 12.5 ns
    
 	uint32_t diff = OS_TimeDifference(LastTime,thisTime);
-	if(diff > JITTER_PERIOD_1){
-		jitter = (diff-JITTER_PERIOD_1+4)/8;  // in 0.1 usec
+	if(diff > expected_period){
+		jitter = (diff-expected_period+4)/8;  // in 0.1 usec
 	}else{
-		jitter = (JITTER_PERIOD_1-diff+4)/8;  // in 0.1 usec
+		jitter = (expected_period-diff+4)/8;  // in 0.1 usec
 	}
 	if(jitter > MaxJitter_1){
 		MaxJitter_1 = jitter; // in usec
@@ -144,19 +155,28 @@ void OS_Jitter_1(void){
 }
 
 
-uint32_t MaxJitter_2;
-void OS_Jitter_2(void){ 
+/*
+*Same as OS_Jitter_1. Populates a new histogram and max jitter value
+*/
+void OS_Jitter_2(uint32_t expected_period){ 
   static uint32_t LastTime;  // time at previous ADC sample
+	//only execute on first call to setup LastTime
+	if(LastTime == 0)
+	{
+		LastTime = OS_Time();
+		return;
+	}
+	
   uint32_t thisTime;              // time at current ADC sample
   long jitter;                    // time between measured and expected, in us
 
 	thisTime = OS_Time();       // current time, 12.5 ns
    
 	uint32_t diff = OS_TimeDifference(LastTime,thisTime);
-	if(diff > JITTER_PERIOD_2){
-		jitter = (diff-JITTER_PERIOD_2+4)/8;  // in 0.1 usec
+	if(diff > expected_period){
+		jitter = (diff-expected_period+4)/8;  // in 0.1 usec
 	}else{
-		jitter = (JITTER_PERIOD_2-diff+4)/8;  // in 0.1 usec
+		jitter = (expected_period-diff+4)/8;  // in 0.1 usec
 	}
 	if(jitter > MaxJitter_2){
 		MaxJitter_2 = jitter; // in usec
@@ -181,6 +201,7 @@ void OS_Init(void){
   // put Lab 2 (and beyond) solution here
 	PLL_Init(Bus80MHz);
 	ST7735_InitR(INITR_REDTAB); // LCD initialization
+	UART_Init(); //UART Init
 	DisableInterrupts();
 	
 	// make PendSV lowest priority (7)
@@ -404,16 +425,27 @@ uint32_t OS_Id(void){
 // In lab 3, this command will be called 0 1 or 2 times
 // In lab 3, there will be up to four background threads, and this priority field 
 //           determines the relative priority of these four threads
-int OS_AddPeriodicThread(void(*task)(void), 
-   uint32_t period, uint32_t priority){
-  // put Lab 2 (and beyond) solution here
-		 
-	// temporary hack for lab 2 that conflicts with OS_MSTime functions
-		 
-	WideTimer0A_Init(task, period, priority);
-  
+int OS_AddPeriodicThread(void(*task)(void), uint32_t period, uint32_t priority)
+{
+	static int pthread_count = 0;
+	
+	if(pthread_count == 0)
+	{
+		WideTimer0A_Init(task, period, priority);
+		pthread_count+=1;
+	}
+	else if(pthread_count == 1)
+	{
+		WideTimer1A_Init(task, period, priority);
+		pthread_count+=1;
+	}
+	else
+	{
+		//Hit max number of supported periodic threads
+		return 0;
+	}
      
-  return 0; // replace this line with solution
+  return 1; // replace this line with solution
 };
 
 
@@ -424,8 +456,21 @@ static void(*SW1Task)(void);
 static void(*SW2Task)(void); //lab3
 
 //Sets up PF4 and PF0 as edge triggered interrupts. TODO LAB 3 CHANGE PRIORITY BASED ON INPUT
-void GPIOPortF_Int_Setup(void)
+void GPIOPortF_Int_Setup(uint32_t priority)
 {
+	static bool setup = false;
+	
+	if(setup == true)
+	{
+		//if port f already setup then just update priority if higher
+		uint32_t old_pri = NVIC_PRI7_R&0x00FF0000;
+		if((priority << 21) > old_pri)
+		{
+			NVIC_PRI7_R = (NVIC_PRI7_R&0xFF00FFFF)||(priority<<21);
+		}
+		return;
+	}
+	
 	SYSCTL_RCGCGPIO_R |= 0x00000020; // (a) activate clock for port F
   
   GPIO_PORTF_LOCK_R = 0x4C4F434B;   // 2) unlock GPIO Port F
@@ -442,7 +487,7 @@ void GPIOPortF_Int_Setup(void)
   GPIO_PORTF_IEV_R &= ~0x11;    //     PF4, PF0 falling edge event
   GPIO_PORTF_ICR_R = 0x11;      // (e) clear flag4 and flag0
   GPIO_PORTF_IM_R |= 0x11;      // (f) arm interrupt on PF4 *** No IME bit as mentioned in Book ***
-  NVIC_PRI7_R = (NVIC_PRI7_R&0xFF00FFFF)|0x00A00000; // (g) priority 5
+  NVIC_PRI7_R = (NVIC_PRI7_R&0xFF00FFFF)||(priority<<21); // (g) priority 5
   NVIC_EN0_R = 0x40000000;      // (h) enable interrupt 30 in NVIC
 }
 
@@ -453,13 +498,19 @@ void GPIOPortF_Handler(void){
 	if(GPIO_PORTF_RIS_R&0x10) // PF4 triggered
 	{
 		GPIO_PORTF_ICR_R = 0x10; //ack flag
-		SW1Task();
+		if(SW1Task != NULL)
+		{
+			SW1Task();
+		}
 	}
 	
 	if(GPIO_PORTF_RIS_R&0x01) //PF0 triggered (lab3)
 	{
 		GPIO_PORTF_ICR_R = 0x01; //ack flag
-		//SW2Task();
+		if(SW2Task != NULL)
+		{
+			SW2Task();
+		}
 	}
 	
  
@@ -480,17 +531,22 @@ void GPIOPortF_Handler(void){
 //           determines the relative priority of these four threads
 int OS_AddSW1Task(void(*task)(void), uint32_t priority){
   // put Lab 2 (and beyond) solution here
+	static bool used = 0;
+	if(used == true)
+	{
+		return 0;
+	}
 	
 	long sr = StartCritical();
 	
 	// initialize port F with edge triggered ints
-	GPIOPortF_Int_Setup();
+	GPIOPortF_Int_Setup(priority);
 
 	SW1Task = task;
 	
 	EndCritical(sr);
- 
-  return 0; // replace this line with solution
+	used = true;
+  return 1; // replace this line with solution
 };
 
 //******** OS_AddSW2Task *************** 
@@ -508,8 +564,20 @@ int OS_AddSW1Task(void(*task)(void), uint32_t priority){
 //           determines the relative priority of these four threads
 int OS_AddSW2Task(void(*task)(void), uint32_t priority){
   // put Lab 2 (and beyond) solution here
-    
-  return 0; // replace this line with solution
+  static bool used = false;
+	
+	if(used == true)
+	{
+		return 0;
+	}
+	
+	long sr = StartCritical();
+	// initialize port F with edge triggered ints
+	GPIOPortF_Int_Setup(priority);
+	SW2Task = task;
+	EndCritical(sr);
+	used = true;
+	return 1;
 };
 
 

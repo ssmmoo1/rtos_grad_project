@@ -22,6 +22,6 @@
  * @brief  Interpreter
  */
 void Interpreter(void);
-
+void Jitter(int32_t, uint32_t const, uint32_t []);
 extern uint32_t NumCreated;
 extern int32_t MaxJitter;

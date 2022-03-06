@@ -27,6 +27,14 @@
 #define TIME_500US  (TIME_1MS/2)  
 #define TIME_250US  (TIME_1MS/5)  
 
+#define JITTERSIZE 64
+/*Jitter Measurement Variables
+*/
+extern uint32_t JitterHistogram_1[JITTERSIZE];
+extern uint32_t JitterHistogram_2[JITTERSIZE];
+extern uint32_t MaxJitter_1;
+extern uint32_t MaxJitter_2;
+
 
 /**
  * \brief Thread Control Block (TCB) definition
@@ -52,6 +60,16 @@ struct  Sema4{
 // add other components here, if necessary to implement blocking
 };
 typedef struct Sema4 Sema4Type;
+
+
+/**
+*Functions for measuring jitter
+*Should be placed inside a periodic function and pass in the expected period
+*The function will calculate jitter and populate the MaxJitter and JitterHistorgram global variables.
+*/
+void OS_Jitter_1(uint32_t expected_period);
+void OS_Jitter_2(uint32_t expected_period);
+
 
 /**
  * @details  Initialize operating system, disable interrupts until OS_Launch.
