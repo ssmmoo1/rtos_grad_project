@@ -34,6 +34,7 @@ void ContextSwitch(void);
 // system time variable
 static uint32_t systemTime;
 static uint32_t msTimeOffset = 0; //used to offset time to 0 when MS time is cleared. 
+static uint32_t time_slice_ms = 1; //number of MS for a time slice. Set in OS_Launch. Systick always at 1 ms
 
 // pool of TCBs to draw from
 #define MAX_THREADS 24
@@ -71,14 +72,19 @@ uint32_t OS_Mail_data;
   used for preemptive thread switch
  *------------------------------------------------------------------------------*/
 void SysTick_Handler(void) {
-	// PD3 ^= 0x08;
-	
+	static int systick_counter = 0; //used to track when a context switch should occur
+  
+  systick_counter+=1;
+  
 	OS_IncrementMsTime();
 	
-  ContextSwitch();
+  if(systick_counter % time_slice_ms == 0)
+  {
+    ContextSwitch();
+  }
   
 	OS_UpdateSleep();
-	// PD3 ^= 0x08;
+
 } // end SysTick_Handler
 
 unsigned long OS_LockScheduler(void){
@@ -781,7 +787,8 @@ void OS_Launch(uint32_t theTimeSlice){
 	else
 	{
 		// initialize Systick for preemptive scheduling
-		SysTick_Init(80000); // 1 ms reload value
+		SysTick_Init(80000); // 1 ms reload value. Should always be 1ms for correct timing 
+    time_slice_ms = theTimeSlice / 80000; //set time slice in whole milliseconds. 
 		OS_ClearMsTime();
 		StartOS();
 	}
