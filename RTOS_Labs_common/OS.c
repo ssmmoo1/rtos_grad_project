@@ -21,6 +21,9 @@
 #include "../RTOS_Labs_common/UART0int.h"
 #include "../RTOS_Labs_common/eFile.h"
 
+#define JITTER_PERIOD_1 2000
+#define JITTER_PERIOD_2 2000
+
 void OS_UpdateSleep(void);
 void OS_IncrementMsTime(void);
 
@@ -46,7 +49,8 @@ TCBType *tcbReadyList = NULL;
 // Performance Measurements 
 #define JITTERSIZE 64
 uint32_t const JitterSize=JITTERSIZE;
-uint32_t JitterHistogram[JITTERSIZE]={0,};
+uint32_t JitterHistogram_1[JITTERSIZE]={0,};
+uint32_t JitterHistogram_2[JITTERSIZE]={0,};
 
 //Global Fifo setup
 //uses 2 semaphore implementation. ASSUMES PUTS WILL NOT BE INTERRUPTED not sure if this is safe but I think it is.
@@ -114,6 +118,56 @@ void SysTick_Init(unsigned long period){
                                         // enable SysTick with core clock and interrupts
   NVIC_ST_CTRL_R = NVIC_ST_CTRL_ENABLE | NVIC_ST_CTRL_CLK_SRC | NVIC_ST_CTRL_INTEN;
 }
+
+uint32_t MaxJitter_1;
+void OS_Jitter_1(void){ 
+  static uint32_t LastTime;  // time at previous ADC sample
+  uint32_t thisTime;              // time at current ADC sample
+  long jitter;                    // time between measured and expected, in us
+
+	thisTime = OS_Time();       // current time, 12.5 ns
+   
+	uint32_t diff = OS_TimeDifference(LastTime,thisTime);
+	if(diff > JITTER_PERIOD_1){
+		jitter = (diff-JITTER_PERIOD_1+4)/8;  // in 0.1 usec
+	}else{
+		jitter = (JITTER_PERIOD_1-diff+4)/8;  // in 0.1 usec
+	}
+	if(jitter > MaxJitter_1){
+		MaxJitter_1 = jitter; // in usec
+	}       // jitter should be 0
+	if(jitter >= JitterSize){
+		jitter = JitterSize-1;
+	}
+	JitterHistogram_1[jitter]++; 
+	LastTime = thisTime;
+}
+
+
+uint32_t MaxJitter_2;
+void OS_Jitter_2(void){ 
+  static uint32_t LastTime;  // time at previous ADC sample
+  uint32_t thisTime;              // time at current ADC sample
+  long jitter;                    // time between measured and expected, in us
+
+	thisTime = OS_Time();       // current time, 12.5 ns
+   
+	uint32_t diff = OS_TimeDifference(LastTime,thisTime);
+	if(diff > JITTER_PERIOD_2){
+		jitter = (diff-JITTER_PERIOD_2+4)/8;  // in 0.1 usec
+	}else{
+		jitter = (JITTER_PERIOD_2-diff+4)/8;  // in 0.1 usec
+	}
+	if(jitter > MaxJitter_2){
+		MaxJitter_2 = jitter; // in usec
+	}       // jitter should be 0
+	if(jitter >= JitterSize){
+		jitter = JitterSize-1;
+	}
+	JitterHistogram_2[jitter]++; 
+	LastTime = thisTime;
+}
+
 
 /**
  * @details  Initialize operating system, disable interrupts until OS_Launch.

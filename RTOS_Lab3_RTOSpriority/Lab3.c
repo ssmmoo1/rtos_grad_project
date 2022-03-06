@@ -73,7 +73,7 @@ uint32_t CPUUtil;       // calculated CPU utilization (in 0.01%)
 uint32_t DataLost;     // data sent by Producer, but not received by Consumer
 extern int32_t MaxJitter;             // largest time jitter between interrupts in usec
 extern uint32_t const JitterSize;
-extern uint32_t JitterHistogram[];
+uint32_t JitterHistogram[];
 
 #define PD0  (*((volatile uint32_t *)0x40007004))
 #define PD1  (*((volatile uint32_t *)0x40007008))
