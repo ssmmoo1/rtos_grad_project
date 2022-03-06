@@ -33,10 +33,7 @@ void ContextSwitch(void);
 
 // system time variable
 static uint32_t systemTime;
-
-// when clear MsTime is called, it resets Ms time, but not systick current register
-// keep track of what current register was, so os_time is reasonably accurate across calls to os_time
-static uint32_t reloadError = 0;
+static uint32_t msTimeOffset = 0; //used to offset time to 0 when MS time is cleared. 
 
 // pool of TCBs to draw from
 #define MAX_THREADS 24
@@ -167,7 +164,7 @@ void OS_Jitter_2(uint32_t expected_period){
 		return;
 	}
 	
-  uint32_t thisTime;              // time at current ADC sample
+  uint32_t thisTime;              
   long jitter;                    // time between measured and expected, in us
 
 	thisTime = OS_Time();       // current time, 12.5 ns
@@ -701,7 +698,7 @@ uint32_t OS_MailBox_Recv(void){
 uint32_t OS_Time(void){
   // put Lab 2 (and beyond) solution here
 	long sr = StartCritical();
-	uint32_t retval = systemTime * (NVIC_ST_RELOAD_R + 1) + (NVIC_ST_RELOAD_R - NVIC_ST_CURRENT_R) - reloadError;
+	uint32_t retval = systemTime * (NVIC_ST_RELOAD_R + 1) + (NVIC_ST_RELOAD_R - NVIC_ST_CURRENT_R);
 	EndCritical(sr);
   return retval;
 };
@@ -751,13 +748,7 @@ static void OS_IncrementMsTime(void) {
 // You are free to change how this works
 void OS_ClearMsTime(void){
   // put Lab 1 solution here
-	systemTime = 0;
-	reloadError = NVIC_ST_RELOAD_R - NVIC_ST_CURRENT_R;
-	/*
-	WideTimer0A_Init(OS_IncrementMsTime, 
-									 80000, 							// Bus freq is 80 MHz, so 80000 reload -> 1 ms period
-									 0); 									// TODO: 0 is an arbitrary priority. Might want to revise later
-	*/
+	msTimeOffset = systemTime;
 };
 
 // ******** OS_MsTime ************
@@ -768,7 +759,7 @@ void OS_ClearMsTime(void){
 // For Labs 2 and beyond, it is ok to make the resolution to match the first call to OS_AddPeriodicThread
 uint32_t OS_MsTime(void){
   // put Lab 1 solution here
-  return systemTime;
+  return systemTime - msTimeOffset;
 };
 
 

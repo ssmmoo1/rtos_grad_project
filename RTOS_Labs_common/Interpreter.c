@@ -33,12 +33,29 @@ void Jitter(int32_t MaxJitter, uint32_t const JitterSize, uint32_t JitterHistogr
   UART_OutString("\n\r Max Jitter: ");
 	UART_OutUDec(MaxJitter);
 	UART_OutString("\n\r");
-	
-	for(uint32_t i = 0; i < JitterSize; i++)
+  
+  //calculate maximum value
+  uint32_t i = 0;
+  uint32_t max_count = 0;
+  uint32_t max_bars = 100;
+  for(i = 0; i < JitterSize; i++)
+  {
+    max_count = (JitterHistogram[i] > max_count)? JitterHistogram[i] : max_count; 
+  }
+  
+  //Scale the histogram values
+	uint32_t JitterHistogram_scaled[JitterSize];
+  for(i = 0; i < JitterSize; i++)
+  {
+    uint32_t scaled_val = (JitterHistogram[i] * max_bars) / max_count;
+    JitterHistogram_scaled[i] = scaled_val; 
+  }
+  
+	for(i = 0; i < JitterSize; i++)
 	{
 		UART_OutUDec(i);
 		UART_OutChar(' ');
-		for(uint32_t y = 0; y < JitterHistogram[i]; y++)
+		for(uint32_t y = 0; y < JitterHistogram_scaled[i]; y++)
 		{
 			UART_OutChar('|');
 		}
@@ -192,11 +209,12 @@ static void handleCommand(char *inString) {
 	
 	else if(strEquals(commandTokens[0], "jitter"))
 	{
-		UART_OutString("Max Jitter 1: ");
-		UART_OutUDec(MaxJitter_1);
-		UART_OutString("\n\r");
-		UART_OutString("Max Jitter 2: ");
-		UART_OutUDec(MaxJitter_2);
+		UART_OutString("Jitter 1 Histogram\n\r");
+    
+    Jitter(MaxJitter_1, JITTERSIZE, JitterHistogram_1);  // print jitter information
+    
+    UART_OutString("Jitter 2 Histogram\n\r");
+    Jitter(MaxJitter_2, JITTERSIZE, JitterHistogram_2);  // print jitter of second thread
 	}
 	
 	else if(strEquals(commandTokens[0], "threads"))
