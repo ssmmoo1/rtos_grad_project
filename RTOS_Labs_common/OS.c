@@ -166,9 +166,10 @@ void OS_Jitter_1(uint32_t expected_period){
    
 	uint32_t diff = OS_TimeDifference(LastTime,thisTime);
 	if(diff > expected_period){
-		jitter = (diff-expected_period+4)/8;  // in 0.1 usec
+		jitter = (diff-expected_period);  // in 0.1 usec
+    //jitter = (diff-expected_period+4)/8;  // in 0.1 usec
 	}else{
-		jitter = (expected_period-diff+4)/8;  // in 0.1 usec
+		jitter = (expected_period-diff);  // in 0.1 usec
 	}
 	if(jitter > MaxJitter_1){
 		MaxJitter_1 = jitter; // in usec
@@ -200,9 +201,11 @@ void OS_Jitter_2(uint32_t expected_period){
    
 	uint32_t diff = OS_TimeDifference(LastTime,thisTime);
 	if(diff > expected_period){
-		jitter = (diff-expected_period+4)/8;  // in 0.1 usec
+		//jitter = (diff-expected_period+4)/8;  // in 0.1 usec
+    jitter = (diff-expected_period);
 	}else{
-		jitter = (expected_period-diff+4)/8;  // in 0.1 usec
+		//jitter = (expected_period-diff+4)/8;  // in 0.1 usec
+    jitter = (expected_period-diff);
 	}
 	if(jitter > MaxJitter_2){
 		MaxJitter_2 = jitter; // in usec
@@ -304,8 +307,8 @@ void OS_Signal(Sema4Type *semaPt){
 void OS_bWait(Sema4Type *semaPt){
   // put Lab 2 (and beyond) solution here
 	DisableInterrupts();
-	if (semaPt->Value <= 0) {
-    
+  semaPt->Value--;
+	if (semaPt->Value < 0) {
     TaskList_PopFront(&tcbReadyList);
 		// block this task and add it to the semaphore's list of waiters
 		TaskList_PushBack(&(semaPt->waiters), currentTCB);
@@ -315,7 +318,6 @@ void OS_bWait(Sema4Type *semaPt){
     OS_Suspend();
    
 	}
-	semaPt->Value = 0;
 	EnableInterrupts();
 }; 
 
@@ -327,13 +329,13 @@ void OS_bWait(Sema4Type *semaPt){
 void OS_bSignal(Sema4Type *semaPt){
   // put Lab 2 (and beyond) solution here
 	long status = StartCritical();
-	if (semaPt->Value <= 0) {
+	if (semaPt->Value < 0) {
 		// unblock one waiting thread
 		TCBType *unblock = TaskList_PopFront(&(semaPt->waiters));
 		unblock->blocked = NULL;
 		TaskList_PushBack(&tcbReadyList, unblock);
 	}
-	semaPt->Value = 1;
+  semaPt->Value = (semaPt->Value >= 0) ? 1 : semaPt->Value+1; //increment if negative but do not go past 1
 	EndCritical(status);
   OS_Suspend();
 	
