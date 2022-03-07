@@ -26,6 +26,7 @@
 #define TIME_2MS    (2*TIME_1MS)  
 #define TIME_500US  (TIME_1MS/2)  
 #define TIME_250US  (TIME_1MS/5)  
+#define TIME_10MS		(TIME_1MS * 10)
 
 #define JITTERSIZE 64
 /*Jitter Measurement Variables

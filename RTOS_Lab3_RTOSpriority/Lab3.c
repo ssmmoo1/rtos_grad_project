@@ -44,7 +44,7 @@
 #include "../RTOS_Labs_common/Interpreter.h"
 #include "../RTOS_Labs_common/ST7735.h"
 
-
+#define LED_DEBUG
 
 //*********Prototype for FFT in cr4_fft_64_stm32.s, STMicroelectronics
 void cr4_fft_64_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
@@ -129,8 +129,8 @@ void ButtonWork(void){
   OS_Sleep(50);     // set this to sleep for 50msec
   ST7735_Message(1,1,"CPUUtil 0.01%=",CPUUtil, true);
   ST7735_Message(1,2,"DataLost     =",DataLost, true);
-  ST7735_Message(1,3,"Jitter_1 0.1us =",MaxJitter_1, true);
-	ST7735_Message(1,4,"Jitter_2 0.1us =",MaxJitter_2, true);
+  ST7735_Message(1,3,"Jit_1 0.1us =",MaxJitter_1, true);
+	ST7735_Message(1,4,"Jit_2 0.1us =",MaxJitter_2, true);
   ST7735_Message(1,5,"CPUUtil 0.01%=",CPUUtil, true);
   PD1 ^= 0x02;
   OS_Kill();  // done, OS does not return from a Kill
@@ -308,6 +308,10 @@ void Idle(void){
   
   // compute CPU utilization (in 0.01%)
   CPUUtil = 10000 - (5*IdleCount)/IdleCountRef;
+	
+	#ifdef LED_DEBUG
+	PF1 = 2;
+	#endif
   
   while(1) {
     // if you do not wish to measure CPU utilization using this idle task
@@ -320,6 +324,9 @@ void Idle(void){
 
 //*******************final user main DEMONTRATE THIS TO TA**********
 int realmain(void){ // realmain
+	#ifdef LED_DEBUG
+	LaunchPad_Init();
+	#endif
   OS_Init();        // initialize, disable interrupts
   PortD_Init();     // debugging profile
   MaxJitter_1 = 0;    // in 1us units
@@ -333,7 +340,7 @@ int realmain(void){ // realmain
 	
   // initialize communication channels
   OS_MailBox_Init();
-  OS_Fifo_Init(64);    // ***note*** 4 is not big enough*****
+  OS_Fifo_Init(32);    // ***note*** 4 is not big enough*****
 
   // hardware init
   ADC_Init(0);  // sequencer 3, channel 0, PE3, sampling in DAS() 
@@ -350,7 +357,7 @@ int realmain(void){ // realmain
   NumCreated += OS_AddThread(&Interpreter,128,2); 
   NumCreated += OS_AddThread(&Idle,128,5);  // Lab 3, at lowest priority 
  
-  OS_Launch(TIME_2MS); // doesn't return, interrupts enabled in here
+  OS_Launch(TIME_10MS); // doesn't return, interrupts enabled in here
 	while(1);
   return 0;            // this never executes
 }

@@ -199,7 +199,7 @@ void OS_Jitter_1(uint32_t expected_period){
 *Same as OS_Jitter_1. Populates a new histogram and max jitter value
 */
 void OS_Jitter_2(uint32_t expected_period){ 
-  static uint32_t LastTime;  // time at previous ADC sample
+  static uint32_t LastTime = 0;  // time at previous ADC sample
 	//only execute on first call to setup LastTime
 	if(LastTime == 0)
 	{
@@ -254,7 +254,7 @@ void OS_Init(void){
 		TCBPool[i].valid = false;
 	}
 	
-	OS_AddThread(OS_TaskIdle, DEFAULT_STACK_SIZE, LOW_PRIORITY);
+	//OS_AddThread(OS_TaskIdle, DEFAULT_STACK_SIZE, LOW_PRIORITY);
 }; 
 
 // ******** OS_InitSemaphore ************
