@@ -121,16 +121,12 @@ PendSV_Handler
 	PUSH	{R0, LR}
 	BL OS_Scheduler
 	POP		{R0, LR}
-	;tcbReadyList now points to the next tcb
+	;currentTCB now points to the next tcb
 	;LDR		R1, [R1, #8] ;8 addresses down to get to the next TCB pointer
 	;STR		R1, [R0]
 	
-	LDR		R2, =tcbReadyList
-	LDR		R1, [R2] ;get new tcbReadyList value which points to next thread
+    LDR R1, [R0]; load new currentTCB
 	LDR		SP, [R1] ; update SP to the next running thread
-	
-	; update currentTCB to point to the new current TCB
-	STR		R1, [R0]
 	
 	POP		{R4-R11} ;pop context of next thread
 	

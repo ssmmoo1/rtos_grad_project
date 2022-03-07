@@ -127,7 +127,12 @@ void OS_Scheduler(void)
 {
 	//find next ready thread
 	TaskList_Iterate(&tcbReadyList);
+  
+  //update currentTCB
+  currentTCB = tcbReadyList;
 	
+  
+  
 }
 
 void SysTick_Init(unsigned long period){
@@ -382,7 +387,6 @@ int OS_AddThread(void(*task)(void),
 	
 	// initialize TCB
 	// set up stack pointer
-	// TODO: I think the stack alignment might be messed up here, but we should test this
 	tcb->sp = (char *)tcb + sizeof(TCBType) - sizeof(uint32_t);
 	//push fake register values onto stack
 	tcb->sp = OS_InitStack(tcb->sp, task);
@@ -560,6 +564,8 @@ void OS_Sleep(uint32_t sleepTime){
 	TaskList_PopFront(&tcbReadyList);
 	TaskList_PushBack(&sleepList, currentTCB);
 	
+  tcbReadyList = tcbReadyList->prev; //move back one otherwisee a thread will be skipped on the next context switch
+  
 	OS_Suspend();
 	EnableInterrupts();
 };  
@@ -592,7 +598,7 @@ void OS_Kill(void){
 // output: none
 void OS_Suspend(void){
   // put Lab 2 (and beyond) solution here
-  
+ 
 	ContextSwitch();
 
 };
@@ -758,6 +764,12 @@ uint32_t OS_TimeDifference(uint32_t start, uint32_t stop){
 */
 void OS_UpdateSleep(void)
 {
+  
+  if(sleepList == NULL)
+  {
+    return;
+  }
+  
 	TCBType *start_tcb = sleepList;
 	
 	do
@@ -766,10 +778,16 @@ void OS_UpdateSleep(void)
 			TCBType *wakeTcb = TaskList_PopFront(&sleepList);
 			TaskList_PushBack(&tcbReadyList, wakeTcb);
 		}
-		
-		sleepList->sleepCounter--;
-		TaskList_Iterate(&sleepList);
-		
+    //handle case if PopFront causes an empty sleep list
+		if(sleepList == NULL)
+    {
+      break; 
+		}
+    else //if more elements then decrement and continue
+    {
+      sleepList->sleepCounter--;
+      TaskList_Iterate(&sleepList);
+    }
 	}
 	while(start_tcb != sleepList);
 	
@@ -824,6 +842,7 @@ void OS_Launch(uint32_t theTimeSlice){
 		SysTick_Init(80000); // 1 ms reload value. Should always be 1ms for correct timing 
     time_slice_ms = theTimeSlice / 80000; //set time slice in whole milliseconds. 
 		OS_ClearMsTime();
+    currentTCB = tcbReadyList;
 		StartOS();
 	}
     
