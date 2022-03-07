@@ -676,7 +676,7 @@ void TaskA(void){       // called every {1000, 2990us} in background
 #define workB 250       // 250 us work in Task B
 void TaskB(void){       // called every pB in background
   PD2 = 0x04;      // debugging profile  
-  OS_Jitter_2(TIME_1MS);
+  OS_Jitter_2(TIME_1MS * 2);
 	CountB++;
   PseudoWork(workB*counts1us); //  do work (100ns time resolution)
   PD2 = 0x00;      // debugging profile  
@@ -711,7 +711,7 @@ uint32_t SignalCount3;   // number of times s is signaled
 uint32_t WaitCount1;     // number of times s is successfully waited on
 uint32_t WaitCount2;     // number of times s is successfully waited on
 uint32_t WaitCount3;     // number of times s is successfully waited on
-#define MAXCOUNT 20000
+#define MAXCOUNT 200
 void OutputThread(void){  // foreground thread
   UART_OutString("\n\rEE445M/EE380L, Lab 3 Procedure 4\n\r");
   while(SignalCount1+SignalCount2+SignalCount3<100*MAXCOUNT){
@@ -743,6 +743,7 @@ void Wait3(void){   // foreground thread
   }
 }
 void Signal1(void){      // called every 799us in background
+  OS_Jitter_1((799*TIME_1MS)/1000);
   if(SignalCount1<MAXCOUNT){
     OS_Signal(&s);
     SignalCount1++;
@@ -750,6 +751,7 @@ void Signal1(void){      // called every 799us in background
 }
 // edit this so it changes the periodic rate
 void Signal2(void){       // called every 1111us in background
+  OS_Jitter_2((1111*TIME_1MS)/1000);
   if(SignalCount2<MAXCOUNT){
     OS_Signal(&s);
     SignalCount2++;
@@ -865,5 +867,5 @@ int TestmainFIFO(void){   // TestmainFIFO
 
 //*******************Trampoline for selecting main to execute**********
 int main(void) { 			// main 
-  Testmain4();
+  Testmain7();
 }

@@ -262,10 +262,14 @@ void OS_Wait(Sema4Type *semaPt){
 	DisableInterrupts();
 	semaPt->Value--;
 	if (semaPt->Value < 0) {
-		// block this task and add it to the semaphore's list of waiters
+		//first remove from ready list
+    TaskList_PopFront(&tcbReadyList);
+    
+    // block this task and add it to the semaphore's list of waiters
 		TaskList_PushBack(&(semaPt->waiters), currentTCB);
 		currentTCB->blocked = (void *)semaPt;
-		TaskList_PopFront(&tcbReadyList);
+		
+    EnableInterrupts();
 		OS_Suspend();
 	}
 	EnableInterrupts();
@@ -287,8 +291,9 @@ void OS_Signal(Sema4Type *semaPt){
 		TaskList_PushBack(&tcbReadyList, unblock);
 	}
 	semaPt->Value++;
+  EndCritical(status);
 	OS_Suspend();
-	EndCritical(status);
+	
 }; 
 
 // ******** OS_bWait ************
@@ -300,11 +305,15 @@ void OS_bWait(Sema4Type *semaPt){
   // put Lab 2 (and beyond) solution here
 	DisableInterrupts();
 	if (semaPt->Value <= 0) {
+    
+    TaskList_PopFront(&tcbReadyList);
 		// block this task and add it to the semaphore's list of waiters
 		TaskList_PushBack(&(semaPt->waiters), currentTCB);
 		currentTCB->blocked = (void *)semaPt;
-		TaskList_PopFront(&tcbReadyList);
-		OS_Suspend();
+		
+    EnableInterrupts();
+    OS_Suspend();
+   
 	}
 	semaPt->Value = 0;
 	EnableInterrupts();
@@ -325,8 +334,9 @@ void OS_bSignal(Sema4Type *semaPt){
 		TaskList_PushBack(&tcbReadyList, unblock);
 	}
 	semaPt->Value = 1;
-	OS_Suspend();
 	EndCritical(status);
+  OS_Suspend();
+	
 }; 
 
 
