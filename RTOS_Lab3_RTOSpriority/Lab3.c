@@ -351,6 +351,7 @@ int realmain(void){ // realmain
   NumCreated += OS_AddThread(&Idle,128,5);  // Lab 3, at lowest priority 
  
   OS_Launch(TIME_2MS); // doesn't return, interrupts enabled in here
+	while(1);
   return 0;            // this never executes
 }
 
@@ -864,5 +865,5 @@ int TestmainFIFO(void){   // TestmainFIFO
 
 //*******************Trampoline for selecting main to execute**********
 int main(void) { 			// main 
-  realmain();
+  Testmain7();
 }

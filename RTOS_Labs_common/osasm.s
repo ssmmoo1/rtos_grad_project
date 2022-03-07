@@ -11,6 +11,7 @@
         PRESERVE8
 
         EXTERN  tcbReadyList            ; currently running thread
+		EXTERN	currentTCB
 
         EXPORT  StartOS
         EXPORT  ContextSwitch
@@ -112,7 +113,7 @@ PendSV_Handler
 	PUSH	{R4-R11} ;save current context that is not auto pushed
 	;save sp to the tcb of the thread that going inactive
 	
-	LDR		R0,=tcbReadyList ;r0 = address current tcb
+	LDR		R0,=currentTCB ;r0 = address current tcb
 	LDR		R1, [R0] ;r1 = first address of tcb which is address of sp field
 	STR		SP, [R1] ;store sp into sp field of the tcb struct
 	
@@ -124,8 +125,12 @@ PendSV_Handler
 	;LDR		R1, [R1, #8] ;8 addresses down to get to the next TCB pointer
 	;STR		R1, [R0]
 	
-	LDR		R1, [R0] ;get new tcbReadyList value which points to next thread
+	LDR		R2, =tcbReadyList
+	LDR		R1, [R2] ;get new tcbReadyList value which points to next thread
 	LDR		SP, [R1] ; update SP to the next running thread
+	
+	; update currentTCB to point to the new current TCB
+	STR		R1, [R0]
 	
 	POP		{R4-R11} ;pop context of next thread
 	

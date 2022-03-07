@@ -22,6 +22,9 @@
 #include "../RTOS_Labs_common/eFile.h"
 #include "../inc/WTimer1A.h"
 #include "../RTOS_Labs_common/PortFInt.h"
+#include "TaskList.h"
+
+#define LOW_PRIORITY 5
 
 void OS_UpdateSleep(void);
 void OS_IncrementMsTime(void);
@@ -40,8 +43,14 @@ static uint32_t time_slice_ms = 1; //number of MS for a time slice. Set in OS_La
 #define MAX_THREADS 24
 static TCBType TCBPool[MAX_THREADS];
 
-// TCB ready list and run pointer
+// TCB ready list
 TCBType *tcbReadyList = NULL;
+
+// run pointer
+TCBType *currentTCB = NULL;
+
+// TCB sleep list
+TCBType *sleepList = NULL;
 
 // Performance Measurements 
 uint32_t const JitterSize=JITTERSIZE;
@@ -65,6 +74,19 @@ Sema4Type OS_Fifo_mutex;
 Sema4Type OS_Mail_Send_Sema;
 Sema4Type OS_Mail_Ack_Sema;
 uint32_t OS_Mail_data;
+
+
+/*------------------------------------------------------------------------------
+  Idle Task
+  Task that does nothing
+  used so the scheduler always has something to run
+ *------------------------------------------------------------------------------*/
+static void OS_TaskIdle(void) {
+	while (1) {
+		OS_Suspend();
+	}
+}
+
 
 /*------------------------------------------------------------------------------
   Systick Interrupt Handler
@@ -103,12 +125,8 @@ void OS_UnLockScheduler(unsigned long previous){
 */
 void OS_Scheduler(void)
 {
-	//find next non sleeping thread
-	tcbReadyList = tcbReadyList->next;
-	while(tcbReadyList->sleepCounter)
-	{
-		tcbReadyList = tcbReadyList->next;
-	}
+	//find next ready thread
+	TaskList_Iterate(&tcbReadyList);
 	
 }
 
@@ -214,6 +232,8 @@ void OS_Init(void){
 	for (uint32_t i = 0; i < MAX_THREADS; ++i) {
 		TCBPool[i].valid = false;
 	}
+	
+	OS_AddThread(OS_TaskIdle, DEFAULT_STACK_SIZE, LOW_PRIORITY);
 }; 
 
 // ******** OS_InitSemaphore ************
@@ -223,6 +243,7 @@ void OS_Init(void){
 void OS_InitSemaphore(Sema4Type *semaPt, int32_t value){
   // put Lab 2 (and beyond) solution here
 	semaPt->Value = value;
+	semaPt->waiters = NULL;
 }; 
 
 // ******** OS_Wait ************
@@ -234,14 +255,15 @@ void OS_InitSemaphore(Sema4Type *semaPt, int32_t value){
 void OS_Wait(Sema4Type *semaPt){
   // put Lab 2 (and beyond) solution here
 	DisableInterrupts();
-	while(semaPt->Value <= 0){
-		EnableInterrupts();
-		OS_Suspend();
-		DisableInterrupts();
-	}
 	semaPt->Value--;
+	if (semaPt->Value < 0) {
+		// block this task and add it to the semaphore's list of waiters
+		TaskList_PushBack(&(semaPt->waiters), currentTCB);
+		currentTCB->blocked = (void *)semaPt;
+		TaskList_PopFront(&tcbReadyList);
+		OS_Suspend();
+	}
 	EnableInterrupts();
-
 } 
 
 // ******** OS_Signal ************
@@ -253,7 +275,14 @@ void OS_Wait(Sema4Type *semaPt){
 void OS_Signal(Sema4Type *semaPt){
   // put Lab 2 (and beyond) solution here
 	long status = StartCritical();
+	if (semaPt->Value < 0) {
+		// unblock one waiting thread
+		TCBType *unblock = TaskList_PopFront(&(semaPt->waiters));
+		unblock->blocked = NULL;
+		TaskList_PushBack(&tcbReadyList, unblock);
+	}
 	semaPt->Value++;
+	OS_Suspend();
 	EndCritical(status);
 }; 
 
@@ -265,10 +294,12 @@ void OS_Signal(Sema4Type *semaPt){
 void OS_bWait(Sema4Type *semaPt){
   // put Lab 2 (and beyond) solution here
 	DisableInterrupts();
-	while(semaPt->Value <= 0){
-		EnableInterrupts();
+	if (semaPt->Value <= 0) {
+		// block this task and add it to the semaphore's list of waiters
+		TaskList_PushBack(&(semaPt->waiters), currentTCB);
+		currentTCB->blocked = (void *)semaPt;
+		TaskList_PopFront(&tcbReadyList);
 		OS_Suspend();
-		DisableInterrupts();
 	}
 	semaPt->Value = 0;
 	EnableInterrupts();
@@ -281,7 +312,16 @@ void OS_bWait(Sema4Type *semaPt){
 // output: none
 void OS_bSignal(Sema4Type *semaPt){
   // put Lab 2 (and beyond) solution here
+	long status = StartCritical();
+	if (semaPt->Value <= 0) {
+		// unblock one waiting thread
+		TCBType *unblock = TaskList_PopFront(&(semaPt->waiters));
+		unblock->blocked = NULL;
+		TaskList_PushBack(&tcbReadyList, unblock);
+	}
 	semaPt->Value = 1;
+	OS_Suspend();
+	EndCritical(status);
 }; 
 
 
@@ -354,27 +394,13 @@ int OS_AddThread(void(*task)(void),
 	EndCritical(sr);
 	// do not start thread sleeping or blocked
 	tcb->sleepCounter = 0;
-	tcb->blocked = false;
+	tcb->blocked = NULL;
 	// set priority and mark thread as valid
 	tcb->priority = priority;
 	tcb->valid = true;
 	
 	// add TCB to ready list (critical section)
-	sr = StartCritical();
-	if (tcbReadyList == NULL) {
-		// add at front if no other tasks ready
-		tcb->next = tcb;
-		tcb->prev = tcb;
-		tcbReadyList = tcb;
-	} else {
-		// add at end otherwise
-		TCBType *oldEnd = tcbReadyList->prev;
-		oldEnd->next = tcb;
-		tcb->prev = oldEnd;
-		tcbReadyList->prev = tcb;
-		tcb->next = tcbReadyList;
-	}
-	EndCritical(sr);
+	TaskList_PushBack(&tcbReadyList, tcb);
      
 	// success
   return 1;
@@ -527,9 +553,15 @@ int OS_AddSW2Task(void(*task)(void), uint32_t priority){
 // OS_Sleep(0) implements cooperative multitasking
 void OS_Sleep(uint32_t sleepTime){
   // put Lab 2 (and beyond) solution here
-  tcbReadyList->sleepCounter = sleepTime;
+	DisableInterrupts();
+  currentTCB->sleepCounter = sleepTime;
+	
+	// add to sleep list and remove from ready list
+	TaskList_PopFront(&tcbReadyList);
+	TaskList_PushBack(&sleepList, currentTCB);
+	
 	OS_Suspend();
-
+	EnableInterrupts();
 };  
 
 // ******** OS_Kill ************
@@ -538,16 +570,14 @@ void OS_Sleep(uint32_t sleepTime){
 // output: none
 void OS_Kill(void){
   // put Lab 2 (and beyond) solution here
-	uint32_t int_status = StartCritical();
+	DisableInterrupts();
 	
-	tcbReadyList->valid = false;
-	//remove from linked list in both directions
-	tcbReadyList->next->prev = tcbReadyList->prev;
-	tcbReadyList->prev->next = tcbReadyList->next;
-	//set run pointer to previous thread so on context switch the right next one will still run
-	//tcbReadyList = tcbReadyList->prev;
+	currentTCB->valid = false;
+	//remove head from linked list
+	TaskList_PopFront(&tcbReadyList);
+
 	OS_Suspend();
-	EndCritical(int_status);
+	EnableInterrupts();
 	//should immedietly context switch to next thread
 	
     
@@ -728,16 +758,20 @@ uint32_t OS_TimeDifference(uint32_t start, uint32_t stop){
 */
 void OS_UpdateSleep(void)
 {
-	TCBType *start_tcb = tcbReadyList;
-	TCBType *current_tcb = tcbReadyList;
+	TCBType *start_tcb = sleepList;
 	
 	do
 	{
-		current_tcb->sleepCounter = (current_tcb->sleepCounter > 0) ? current_tcb->sleepCounter-1 : 0;
-		current_tcb = current_tcb->next;
+		if (sleepList->sleepCounter == 0) {
+			TCBType *wakeTcb = TaskList_PopFront(&sleepList);
+			TaskList_PushBack(&tcbReadyList, wakeTcb);
+		}
+		
+		sleepList->sleepCounter--;
+		TaskList_Iterate(&sleepList);
 		
 	}
-	while(start_tcb != current_tcb);
+	while(start_tcb != sleepList);
 	
 }
 

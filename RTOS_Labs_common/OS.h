@@ -47,7 +47,7 @@ typedef struct TCB {
 	uint32_t id;
 	uint32_t sleepCounter; //time in milliseconds uses OS_time interrupt to decrement
 	uint32_t priority;
-	bool blocked;
+	void *blocked;
 	bool valid;
 	uint32_t stack[DEFAULT_STACK_SIZE];
 } TCBType;
@@ -58,6 +58,7 @@ typedef struct TCB {
 struct  Sema4{
   int32_t Value;   // >0 means free, otherwise means busy        
 // add other components here, if necessary to implement blocking
+	TCBType *waiters;
 };
 typedef struct Sema4 Sema4Type;
 

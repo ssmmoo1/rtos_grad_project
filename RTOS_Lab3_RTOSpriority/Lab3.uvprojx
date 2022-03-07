@@ -10,7 +10,7 @@
       <TargetName>Lab3</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>5060960::V5.06 update 7 (build 960)::.\ARMCC</pCCUsed>
+      <pCCUsed>5060960::V5.06 update 7 (build 960)::ARMCC</pCCUsed>
       <uAC6>0</uAC6>
       <TargetOption>
         <TargetCommonOption>
@@ -492,6 +492,16 @@
               <FileName>PortFInt.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\RTOS_Labs_common\PortFInt.h</FilePath>
+            </File>
+            <File>
+              <FileName>TaskList.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\RTOS_Labs_common\TaskList.h</FilePath>
+            </File>
+            <File>
+              <FileName>TaskList.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\RTOS_Labs_common\TaskList.c</FilePath>
             </File>
           </Files>
         </Group>
