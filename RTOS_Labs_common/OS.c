@@ -44,7 +44,12 @@ static uint32_t time_slice_ms = 1; //number of MS for a time slice. Set in OS_La
 static TCBType TCBPool[MAX_THREADS];
 
 // TCB ready list
-TCBType *tcbReadyList = NULL;
+//TCBType *tcbReadyList = NULL;
+
+
+TCBType *tcbReadyList[LOW_PRIORITY+1];
+
+
 
 // run pointer
 TCBType *currentTCB = NULL;
@@ -126,12 +131,20 @@ void OS_UnLockScheduler(unsigned long previous){
 void OS_Scheduler(void)
 {
 	//find next ready thread
-	TaskList_Iterate(&tcbReadyList);
+	//TaskList_Iterate(&tcbReadyList);
+  //currentTCB = tcbReadyList;
   
-  //update currentTCB
-  currentTCB = tcbReadyList;
-	
-  
+  int max_pri = LOW_PRIORITY;
+  for(int i = 0; i < LOW_PRIORITY + 1; i++)
+  {
+      if(tcbReadyList[i] != NULL)
+      {
+        max_pri = i;
+        break;
+      }
+  }
+  TaskList_Iterate(&(tcbReadyList[max_pri]));
+  currentTCB = tcbReadyList[max_pri];
   
 }
 
@@ -266,7 +279,7 @@ void OS_Wait(Sema4Type *semaPt){
 	semaPt->Value--;
 	if (semaPt->Value < 0) {
 		//first remove from ready list
-    TaskList_PopFront(&tcbReadyList);
+    TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
     
     // block this task and add it to the semaphore's list of waiters
 		TaskList_PushBack(&(semaPt->waiters), currentTCB);
@@ -291,7 +304,7 @@ void OS_Signal(Sema4Type *semaPt){
 		// unblock one waiting thread
 		TCBType *unblock = TaskList_PopFront(&(semaPt->waiters));
 		unblock->blocked = NULL;
-		TaskList_PushBack(&tcbReadyList, unblock);
+		TaskList_PushBack(&(tcbReadyList[unblock->priority]), unblock);
 	}
 	semaPt->Value++;
   EndCritical(status);
@@ -309,7 +322,7 @@ void OS_bWait(Sema4Type *semaPt){
 	DisableInterrupts();
   semaPt->Value--;
 	if (semaPt->Value < 0) {
-    TaskList_PopFront(&tcbReadyList);
+    TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
 		// block this task and add it to the semaphore's list of waiters
 		TaskList_PushBack(&(semaPt->waiters), currentTCB);
 		currentTCB->blocked = (void *)semaPt;
@@ -333,7 +346,7 @@ void OS_bSignal(Sema4Type *semaPt){
 		// unblock one waiting thread
 		TCBType *unblock = TaskList_PopFront(&(semaPt->waiters));
 		unblock->blocked = NULL;
-		TaskList_PushBack(&tcbReadyList, unblock);
+		TaskList_PushBack(&(tcbReadyList[unblock->priority]), unblock);
 	}
   semaPt->Value = (semaPt->Value >= 0) ? 1 : semaPt->Value+1; //increment if negative but do not go past 1
 	EndCritical(status);
@@ -416,7 +429,7 @@ int OS_AddThread(void(*task)(void),
 	tcb->valid = true;
 	
 	// add TCB to ready list (critical section)
-	TaskList_PushBack(&tcbReadyList, tcb);
+	TaskList_PushBack(&(tcbReadyList[priority]), tcb);
      
 	// success
   return 1;
@@ -573,10 +586,10 @@ void OS_Sleep(uint32_t sleepTime){
   currentTCB->sleepCounter = sleepTime;
 	
 	// add to sleep list and remove from ready list
-	TaskList_PopFront(&tcbReadyList);
+	TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
 	TaskList_PushBack(&sleepList, currentTCB);
 	
-  tcbReadyList = tcbReadyList->prev; //move back one otherwisee a thread will be skipped on the next context switch
+  //tcbReadyList = tcbReadyList->prev; //move back one otherwisee a thread will be skipped on the next context switch
   
 	OS_Suspend();
 	EnableInterrupts();
@@ -592,7 +605,7 @@ void OS_Kill(void){
 	
 	currentTCB->valid = false;
 	//remove head from linked list
-	TaskList_PopFront(&tcbReadyList);
+	TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
 
 	OS_Suspend();
 	EnableInterrupts();
@@ -788,7 +801,7 @@ void OS_UpdateSleep(void)
 	{
 		if (sleepList->sleepCounter == 0) {
 			TCBType *wakeTcb = TaskList_PopFront(&sleepList);
-			TaskList_PushBack(&tcbReadyList, wakeTcb);
+			TaskList_PushBack(&(tcbReadyList[wakeTcb->priority]), wakeTcb);
 		}
     //handle case if PopFront causes an empty sleep list
 		if(sleepList == NULL)
@@ -843,7 +856,7 @@ uint32_t OS_MsTime(void){
 // It is ok to limit the range of theTimeSlice to match the 24-bit SysTick
 void OS_Launch(uint32_t theTimeSlice){
   // put Lab 2 (and beyond) solution here
-  if(tcbReadyList == NULL)
+  if(tcbReadyList[LOW_PRIORITY] == NULL)
 	{
 		return;
 	}
@@ -854,7 +867,7 @@ void OS_Launch(uint32_t theTimeSlice){
 		SysTick_Init(80000); // 1 ms reload value. Should always be 1ms for correct timing 
     time_slice_ms = theTimeSlice / 80000; //set time slice in whole milliseconds. 
 		OS_ClearMsTime();
-    currentTCB = tcbReadyList;
+    currentTCB = tcbReadyList[LOW_PRIORITY];
 		StartOS();
 	}
     

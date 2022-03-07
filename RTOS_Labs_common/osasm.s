@@ -31,7 +31,7 @@ PD3				EQU		0x40007020
 
 StartOS
 ; put your code here
-    LDR		R0, =tcbReadyList
+    LDR		R0, =currentTCB
 	LDR		R1, [R0]
 	LDR		SP, [R1]
 	POP		{R4-R11}
