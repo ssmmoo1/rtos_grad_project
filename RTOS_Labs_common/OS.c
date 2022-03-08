@@ -764,9 +764,11 @@ uint32_t OS_MailBox_Recv(void){
 //   this function and OS_TimeDifference have the same resolution and precision 
 uint32_t OS_Time(void){
   // put Lab 2 (and beyond) solution here
-	long sr = StartCritical();
+	
+	// make sure this has no critical section, so we can call it from EnableInterrupts(), DisableInterrupts(), StartCritical(), and EndCritical()	
+	//long sr = StartCritical();
 	uint32_t retval = systemTime * (NVIC_ST_RELOAD_R + 1) + (NVIC_ST_RELOAD_R - NVIC_ST_CURRENT_R);
-	EndCritical(sr);
+	//EndCritical(sr);
   return retval;
 };
 
@@ -921,3 +923,28 @@ int OS_RedirectToST7735(void){
   return 1;
 }
 
+
+// functions for keeping track of critical section time
+
+static uint32_t intrTimeStamps[500];
+static uint32_t intrTimeStampsIdx = 200;
+static uint32_t totalIntrTime = 0;
+static uint32_t maxIntrTime = 0;
+
+void OS_TimeLogCPSID(void) {
+	intrTimeStamps[intrTimeStampsIdx++] = OS_Time();
+}
+
+void OS_TimeLogCPSIE(void) {
+	uint32_t intrTime = OS_Time() - intrTimeStamps[--intrTimeStampsIdx];
+	totalIntrTime += intrTime;
+	maxIntrTime = (maxIntrTime >= intrTime) ? maxIntrTime : intrTime;
+}
+
+uint32_t OS_GetTotalCriticalSectionTime(void) {
+	return totalIntrTime;
+}
+
+uint32_t OS_GetLongestCriticalSectionTime(void) {
+	return maxIntrTime;
+}
