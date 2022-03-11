@@ -102,7 +102,7 @@ void PortD_Init(void){
 uint32_t DASoutput;
 void DAS(void){ 
   uint32_t input;  
-	OS_Jitter_1(PERIOD1);
+  OS_Jitter_1(PERIOD1);
   if(NumSamples < RUNLENGTH){   // finite time run
     PD0 ^= 0x01;
     input = ADC_In();           // channel set when calling ADC_Init
@@ -130,7 +130,7 @@ void ButtonWork(void){
   ST7735_Message(1,1,"CPUUtil 0.01%=",CPUUtil, true);
   ST7735_Message(1,2,"DataLost     =",DataLost, true);
   ST7735_Message(1,3,"Jit_1 0.1us =",MaxJitter_1, true);
-	ST7735_Message(1,4,"Jit_2 0.1us =",MaxJitter_2, true);
+  ST7735_Message(1,4,"Jit_2 0.1us =",MaxJitter_2, true);
   ST7735_Message(1,5,"CPUUtil 0.01%=",CPUUtil, true);
   PD1 ^= 0x02;
   OS_Kill();  // done, OS does not return from a Kill
@@ -256,7 +256,7 @@ short Coeff[3] = { // PID coefficients
 };    
 short Actuator;
 void PID(void){ 
-	OS_Jitter_2(PERIOD2);
+  OS_Jitter_2(PERIOD2);
   static short err = -1000;  // speed error, range -100 to 100 RPM
   Actuator = PID_stm32(err,Coeff)/256;
   err++; 
@@ -301,17 +301,17 @@ void Interpreter(void);    // just a prototype, link to your interpreter
 // inputs:  none
 // outputs: none
 void Idle(void){
-  // measure idle time only for the first 20s for this lab	
+  // measure idle time only for the first 20s for this lab  
   while(NumSamples < RUNLENGTH){
     IdleCount++;  // measure of CPU idle time
   }
   
   // compute CPU utilization (in 0.01%)
   CPUUtil = 10000 - (5*IdleCount)/IdleCountRef;
-	
-	#ifdef LED_DEBUG
-	PF1 = 2;
-	#endif
+  
+  #ifdef LED_DEBUG
+  PF1 = 2;
+  #endif
   
   while(1) {
     // if you do not wish to measure CPU utilization using this idle task
@@ -324,20 +324,20 @@ void Idle(void){
 
 //*******************final user main DEMONTRATE THIS TO TA**********
 int realmain(void){ // realmain
-	#ifdef LED_DEBUG
-	LaunchPad_Init();
-	#endif
+  #ifdef LED_DEBUG
+  LaunchPad_Init();
+  #endif
   OS_Init();        // initialize, disable interrupts
   PortD_Init();     // debugging profile
   MaxJitter_1 = 0;    // in 1us units
-	MaxJitter_2 = 0;    // in 1us units
+  MaxJitter_2 = 0;    // in 1us units
   DataLost = 0;     // lost data between producer and consumer
   IdleCount = 0;
   CPUUtil = 0;
   NumSamples = 0;
   FilterWork = 0;
   PIDWork = 0;
-	
+  
   // initialize communication channels
   OS_MailBox_Init();
   OS_Fifo_Init(32);    // ***note*** 4 is not big enough*****
@@ -358,7 +358,7 @@ int realmain(void){ // realmain
   NumCreated += OS_AddThread(&Idle,128,5);  // Lab 3, at lowest priority 
  
   OS_Launch(TIME_10MS); // doesn't return, interrupts enabled in here
-	while(1);
+  while(1);
   return 0;            // this never executes
 }
 
@@ -675,7 +675,7 @@ void Thread7(void){  // foreground thread
 #define counts1us 10    // number of OS_Time counts per 1us
 void TaskA(void){       // called every {1000, 2990us} in background
   PD1 = 0x02;      // debugging profile  
-	OS_Jitter_1(TIME_1MS);
+  OS_Jitter_1(TIME_1MS);
   CountA++;
   PseudoWork(workA*counts1us); //  do work (100ns time resolution)
   PD1 = 0x00;      // debugging profile  
@@ -684,7 +684,7 @@ void TaskA(void){       // called every {1000, 2990us} in background
 void TaskB(void){       // called every pB in background
   PD2 = 0x04;      // debugging profile  
   OS_Jitter_2(TIME_1MS * 2);
-	CountB++;
+  CountB++;
   PseudoWork(workB*counts1us); //  do work (100ns time resolution)
   PD2 = 0x00;      // debugging profile  
 }
@@ -873,6 +873,6 @@ int TestmainFIFO(void){   // TestmainFIFO
 }
 
 //*******************Trampoline for selecting main to execute**********
-int main(void) { 			// main 
+int main(void) {       // main 
   realmain();
 }

@@ -603,7 +603,7 @@ int ESP8266_Reset(void){ int try=MAXTRY;
 // Outputs: 1 if success, 0 if fail
 int ESP8266_Restore(void) { int try=MAXTRY;
   while(try){
-  	ESP8266_SendCommand("AT+RESTORE\r\n");
+    ESP8266_SendCommand("AT+RESTORE\r\n");
     if(ESP8266_WaitForResponse(ESP8266_READY_RESPONSE,0)) return SUCCESS;
     try--;
   }

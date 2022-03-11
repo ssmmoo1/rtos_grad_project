@@ -87,9 +87,9 @@ uint32_t OS_Mail_data;
   used so the scheduler always has something to run
  *------------------------------------------------------------------------------*/
 static void OS_TaskIdle(void) {
-	while (1) {
-		OS_Suspend();
-	}
+  while (1) {
+    OS_Suspend();
+  }
 }
 
 
@@ -99,18 +99,18 @@ static void OS_TaskIdle(void) {
   used for preemptive thread switch
  *------------------------------------------------------------------------------*/
 void SysTick_Handler(void) {
-	static int systick_counter = 0; //used to track when a context switch should occur
+  static int systick_counter = 0; //used to track when a context switch should occur
   
   systick_counter+=1;
   
-	OS_IncrementMsTime();
-	
+  OS_IncrementMsTime();
+  
   if(systick_counter % time_slice_ms == 0)
   {
     ContextSwitch();
   }
   
-	OS_UpdateSleep();
+  OS_UpdateSleep();
 
 } // end SysTick_Handler
 
@@ -130,8 +130,8 @@ void OS_UnLockScheduler(unsigned long previous){
 */
 void OS_Scheduler(void)
 {
-	//find next ready thread
-	//TaskList_Iterate(&tcbReadyList);
+  //find next ready thread
+  //TaskList_Iterate(&tcbReadyList);
   //currentTCB = tcbReadyList;
   
   int max_pri = LOW_PRIORITY;
@@ -152,7 +152,7 @@ void SysTick_Init(unsigned long period){
   NVIC_ST_CTRL_R = 0;                   // disable SysTick during setup
   NVIC_ST_RELOAD_R = (period-1);            // set reload value
   NVIC_ST_CURRENT_R = 0;                // any write to current clears it
-	NVIC_SYS_PRI3_R = (NVIC_SYS_PRI3_R&0x00FFFFFF)|0xC0000000; // priority 6 (just above PendSv)
+  NVIC_SYS_PRI3_R = (NVIC_SYS_PRI3_R&0x00FFFFFF)|0xC0000000; // priority 6 (just above PendSv)
                                         // enable SysTick with core clock and interrupts
   NVIC_ST_CTRL_R = NVIC_ST_CTRL_ENABLE | NVIC_ST_CTRL_CLK_SRC | NVIC_ST_CTRL_INTEN;
 }
@@ -165,33 +165,33 @@ void SysTick_Init(unsigned long period){
 
 void OS_Jitter_1(uint32_t expected_period){ 
   static uint32_t LastTime = 0;  // time at previous ADC sample
-	//only execute on first call to setup LastTime
-	if(LastTime == 0)
-	{
-		LastTime = OS_Time();
-		return;
-	}
-	
+  //only execute on first call to setup LastTime
+  if(LastTime == 0)
+  {
+    LastTime = OS_Time();
+    return;
+  }
+  
   uint32_t thisTime;              // time at current function call
   long jitter;                    // time between measured and expected, in us
 
-	thisTime = OS_Time();       // current time, 12.5 ns
+  thisTime = OS_Time();       // current time, 12.5 ns
    
-	uint32_t diff = OS_TimeDifference(LastTime,thisTime);
-	if(diff > expected_period){
-		jitter = (diff-expected_period);  // in 0.1 usec
+  uint32_t diff = OS_TimeDifference(LastTime,thisTime);
+  if(diff > expected_period){
+    jitter = (diff-expected_period);  // in 0.1 usec
     //jitter = (diff-expected_period+4)/8;  // in 0.1 usec
-	}else{
-		jitter = (expected_period-diff);  // in 0.1 usec
-	}
-	if(jitter > MaxJitter_1){
-		MaxJitter_1 = jitter; // in usec
-	}       // jitter should be 0
-	if(jitter >= JitterSize){
-		jitter = JitterSize-1;
-	}
-	JitterHistogram_1[jitter]++; 
-	LastTime = thisTime;
+  }else{
+    jitter = (expected_period-diff);  // in 0.1 usec
+  }
+  if(jitter > MaxJitter_1){
+    MaxJitter_1 = jitter; // in usec
+  }       // jitter should be 0
+  if(jitter >= JitterSize){
+    jitter = JitterSize-1;
+  }
+  JitterHistogram_1[jitter]++; 
+  LastTime = thisTime;
 }
 
 
@@ -200,34 +200,34 @@ void OS_Jitter_1(uint32_t expected_period){
 */
 void OS_Jitter_2(uint32_t expected_period){ 
   static uint32_t LastTime = 0;  // time at previous ADC sample
-	//only execute on first call to setup LastTime
-	if(LastTime == 0)
-	{
-		LastTime = OS_Time();
-		return;
-	}
-	
+  //only execute on first call to setup LastTime
+  if(LastTime == 0)
+  {
+    LastTime = OS_Time();
+    return;
+  }
+  
   uint32_t thisTime;              
   long jitter;                    // time between measured and expected, in us
 
-	thisTime = OS_Time();       // current time, 12.5 ns
+  thisTime = OS_Time();       // current time, 12.5 ns
    
-	uint32_t diff = OS_TimeDifference(LastTime,thisTime);
-	if(diff > expected_period){
-		//jitter = (diff-expected_period+4)/8;  // in 0.1 usec
+  uint32_t diff = OS_TimeDifference(LastTime,thisTime);
+  if(diff > expected_period){
+    //jitter = (diff-expected_period+4)/8;  // in 0.1 usec
     jitter = (diff-expected_period);
-	}else{
-		//jitter = (expected_period-diff+4)/8;  // in 0.1 usec
+  }else{
+    //jitter = (expected_period-diff+4)/8;  // in 0.1 usec
     jitter = (expected_period-diff);
-	}
-	if(jitter > MaxJitter_2){
-		MaxJitter_2 = jitter; // in usec
-	}       // jitter should be 0
-	if(jitter >= JitterSize){
-		jitter = JitterSize-1;
-	}
-	JitterHistogram_2[jitter]++; 
-	LastTime = thisTime;
+  }
+  if(jitter > MaxJitter_2){
+    MaxJitter_2 = jitter; // in usec
+  }       // jitter should be 0
+  if(jitter >= JitterSize){
+    jitter = JitterSize-1;
+  }
+  JitterHistogram_2[jitter]++; 
+  LastTime = thisTime;
 }
 
 
@@ -241,20 +241,20 @@ void OS_Jitter_2(uint32_t expected_period){
  */
 void OS_Init(void){
   // put Lab 2 (and beyond) solution here
-	PLL_Init(Bus80MHz);
-	ST7735_InitR(INITR_REDTAB); // LCD initialization
-	UART_Init(); //UART Init
-	DisableInterrupts();
-	
-	// make PendSV lowest priority (7)
-	NVIC_SYS_PRI3_R |= 0x00E00000;
-	
-	// mark all TCBs as invalid on startup
-	for (uint32_t i = 0; i < MAX_THREADS; ++i) {
-		TCBPool[i].valid = false;
-	}
-	
-	//OS_AddThread(OS_TaskIdle, DEFAULT_STACK_SIZE, LOW_PRIORITY);
+  PLL_Init(Bus80MHz);
+  ST7735_InitR(INITR_REDTAB); // LCD initialization
+  UART_Init(); //UART Init
+  DisableInterrupts();
+  
+  // make PendSV lowest priority (7)
+  NVIC_SYS_PRI3_R |= 0x00E00000;
+  
+  // mark all TCBs as invalid on startup
+  for (uint32_t i = 0; i < MAX_THREADS; ++i) {
+    TCBPool[i].valid = false;
+  }
+  
+  //OS_AddThread(OS_TaskIdle, DEFAULT_STACK_SIZE, LOW_PRIORITY);
 }; 
 
 // ******** OS_InitSemaphore ************
@@ -263,8 +263,8 @@ void OS_Init(void){
 // output: none
 void OS_InitSemaphore(Sema4Type *semaPt, int32_t value){
   // put Lab 2 (and beyond) solution here
-	semaPt->Value = value;
-	semaPt->waiters = NULL;
+  semaPt->Value = value;
+  semaPt->waiters = NULL;
 }; 
 
 // ******** OS_Wait ************
@@ -275,20 +275,20 @@ void OS_InitSemaphore(Sema4Type *semaPt, int32_t value){
 // output: none
 void OS_Wait(Sema4Type *semaPt){
   // put Lab 2 (and beyond) solution here
-	DisableInterrupts();
-	semaPt->Value--;
-	if (semaPt->Value < 0) {
-		//first remove from ready list
+  DisableInterrupts();
+  semaPt->Value--;
+  if (semaPt->Value < 0) {
+    //first remove from ready list
     TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
     
     // block this task and add it to the semaphore's list of waiters
-		TaskList_PushBack(&(semaPt->waiters), currentTCB);
-		currentTCB->blocked = (void *)semaPt;
-		
+    TaskList_PushBack(&(semaPt->waiters), currentTCB);
+    currentTCB->blocked = (void *)semaPt;
+    
     EnableInterrupts();
-		OS_Suspend();
-	}
-	EnableInterrupts();
+    OS_Suspend();
+  }
+  EnableInterrupts();
 } 
 
 // ******** OS_Signal ************
@@ -299,17 +299,17 @@ void OS_Wait(Sema4Type *semaPt){
 // output: none
 void OS_Signal(Sema4Type *semaPt){
   // put Lab 2 (and beyond) solution here
-	long status = StartCritical();
-	if (semaPt->Value < 0) {
-		// unblock one waiting thread
-		TCBType *unblock = TaskList_PopFront(&(semaPt->waiters));
-		unblock->blocked = NULL;
-		TaskList_PushBack(&(tcbReadyList[unblock->priority]), unblock);
-	}
-	semaPt->Value++;
+  long status = StartCritical();
+  if (semaPt->Value < 0) {
+    // unblock one waiting thread
+    TCBType *unblock = TaskList_PopFront(&(semaPt->waiters));
+    unblock->blocked = NULL;
+    TaskList_PushBack(&(tcbReadyList[unblock->priority]), unblock);
+  }
+  semaPt->Value++;
   EndCritical(status);
-	OS_Suspend();
-	
+  OS_Suspend();
+  
 }; 
 
 // ******** OS_bWait ************
@@ -319,19 +319,19 @@ void OS_Signal(Sema4Type *semaPt){
 // output: none
 void OS_bWait(Sema4Type *semaPt){
   // put Lab 2 (and beyond) solution here
-	DisableInterrupts();
+  DisableInterrupts();
   semaPt->Value--;
-	if (semaPt->Value < 0) {
+  if (semaPt->Value < 0) {
     TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
-		// block this task and add it to the semaphore's list of waiters
-		TaskList_PushBack(&(semaPt->waiters), currentTCB);
-		currentTCB->blocked = (void *)semaPt;
-		
+    // block this task and add it to the semaphore's list of waiters
+    TaskList_PushBack(&(semaPt->waiters), currentTCB);
+    currentTCB->blocked = (void *)semaPt;
+    
     EnableInterrupts();
     OS_Suspend();
    
-	}
-	EnableInterrupts();
+  }
+  EnableInterrupts();
 }; 
 
 // ******** OS_bSignal ************
@@ -341,44 +341,44 @@ void OS_bWait(Sema4Type *semaPt){
 // output: none
 void OS_bSignal(Sema4Type *semaPt){
   // put Lab 2 (and beyond) solution here
-	long status = StartCritical();
-	if (semaPt->Value < 0) {
-		// unblock one waiting thread
-		TCBType *unblock = TaskList_PopFront(&(semaPt->waiters));
-		unblock->blocked = NULL;
-		TaskList_PushBack(&(tcbReadyList[unblock->priority]), unblock);
-	}
+  long status = StartCritical();
+  if (semaPt->Value < 0) {
+    // unblock one waiting thread
+    TCBType *unblock = TaskList_PopFront(&(semaPt->waiters));
+    unblock->blocked = NULL;
+    TaskList_PushBack(&(tcbReadyList[unblock->priority]), unblock);
+  }
   semaPt->Value = (semaPt->Value >= 0) ? 1 : semaPt->Value+1; //increment if negative but do not go past 1
-	EndCritical(status);
+  EndCritical(status);
   OS_Suspend();
-	
+  
 }; 
 
 
 long* OS_InitStack(long *sp, void(*task)(void))
 {
-	//*(sp) = (long)task;
-	//first push the registers interrupts handle R0-R3, R12, LR, PC, PSR
-	*(sp) = 0x01000000; //PSR needs thumb bit
-	*(--sp) = (long)task; //r14 PC
-	*(--sp) = 0x13131313; //r13 LR
-	*(--sp) = 0x12121212; //r12
-	*(--sp) = 0x03030303; //r3
-	*(--sp) = 0x02020202; //r2
-	*(--sp) = 0x01010101; //r1
-	*(--sp) = 0x00000000; //r0
-	
-	//push registers not handled by ISR r11-r4
-	*(--sp) = (long) 0x11111111; //r11
-	*(--sp) = (long) 0x10101010L; //r10
-	*(--sp) = (long) 0x09090909L; //r9
-	*(--sp) = (long) 0x08080808L; //r8
-	*(--sp) = (long) 0x07070707L; //r7
-	*(--sp) = (long) 0x06060606L; //r6
-	*(--sp) = (long) 0x05050505L; //r5
-	*(--sp) = (long) 0x04040404L; //r4
-	
-	return sp;
+  //*(sp) = (long)task;
+  //first push the registers interrupts handle R0-R3, R12, LR, PC, PSR
+  *(sp) = 0x01000000; //PSR needs thumb bit
+  *(--sp) = (long)task; //r14 PC
+  *(--sp) = 0x13131313; //r13 LR
+  *(--sp) = 0x12121212; //r12
+  *(--sp) = 0x03030303; //r3
+  *(--sp) = 0x02020202; //r2
+  *(--sp) = 0x01010101; //r1
+  *(--sp) = 0x00000000; //r0
+  
+  //push registers not handled by ISR r11-r4
+  *(--sp) = (long) 0x11111111; //r11
+  *(--sp) = (long) 0x10101010L; //r10
+  *(--sp) = (long) 0x09090909L; //r9
+  *(--sp) = (long) 0x08080808L; //r8
+  *(--sp) = (long) 0x07070707L; //r7
+  *(--sp) = (long) 0x06060606L; //r6
+  *(--sp) = (long) 0x05050505L; //r5
+  *(--sp) = (long) 0x04040404L; //r4
+  
+  return sp;
 }
 
 
@@ -394,44 +394,44 @@ long* OS_InitStack(long *sp, void(*task)(void))
 int OS_AddThread(void(*task)(void), 
    uint32_t stackSize, uint32_t priority){
   // put Lab 2 (and beyond) solution here
-	static uint32_t idCounter = 0;
-	long sr;
+  static uint32_t idCounter = 0;
+  long sr;
 
-	// allocate a TCB
-	TCBType *tcb = NULL;
-	for (uint32_t i = 0; i < MAX_THREADS; ++i) {
-		if (TCBPool[i].valid == false) {
-			tcb = &(TCBPool[i]);
-			break;
-		}
-	}
-	// error if no more TCBs available
-	if (tcb == NULL) {
-		return 0;
-	}
-	
-	// initialize TCB
-	// set up stack pointer
-	tcb->sp = (char *)tcb + sizeof(TCBType) - sizeof(uint32_t);
-	//push fake register values onto stack
-	tcb->sp = OS_InitStack(tcb->sp, task);
-	
-	
-	// increment id counter and set thread id (critical section)
-	sr = StartCritical();
-	tcb->id = idCounter++;
-	EndCritical(sr);
-	// do not start thread sleeping or blocked
-	tcb->sleepCounter = 0;
-	tcb->blocked = NULL;
-	// set priority and mark thread as valid
-	tcb->priority = priority;
-	tcb->valid = true;
-	
-	// add TCB to ready list (critical section)
-	TaskList_PushBack(&(tcbReadyList[priority]), tcb);
+  // allocate a TCB
+  TCBType *tcb = NULL;
+  for (uint32_t i = 0; i < MAX_THREADS; ++i) {
+    if (TCBPool[i].valid == false) {
+      tcb = &(TCBPool[i]);
+      break;
+    }
+  }
+  // error if no more TCBs available
+  if (tcb == NULL) {
+    return 0;
+  }
+  
+  // initialize TCB
+  // set up stack pointer
+  tcb->sp = (char *)tcb + sizeof(TCBType) - sizeof(uint32_t);
+  //push fake register values onto stack
+  tcb->sp = OS_InitStack(tcb->sp, task);
+  
+  
+  // increment id counter and set thread id (critical section)
+  sr = StartCritical();
+  tcb->id = idCounter++;
+  EndCritical(sr);
+  // do not start thread sleeping or blocked
+  tcb->sleepCounter = 0;
+  tcb->blocked = NULL;
+  // set priority and mark thread as valid
+  tcb->priority = priority;
+  tcb->valid = true;
+  
+  // add TCB to ready list (critical section)
+  TaskList_PushBack(&(tcbReadyList[priority]), tcb);
      
-	// success
+  // success
   return 1;
 };
 
@@ -485,23 +485,23 @@ uint32_t OS_Id(void){
 //           determines the relative priority of these four threads
 int OS_AddPeriodicThread(void(*task)(void), uint32_t period, uint32_t priority)
 {
-	static int pthread_count = 0;
-	
-	if(pthread_count == 0)
-	{
-		WideTimer0A_Init(task, period, priority);
-		pthread_count+=1;
-	}
-	else if(pthread_count == 1)
-	{
-		WideTimer1A_Init(task, period, priority);
-		pthread_count+=1;
-	}
-	else
-	{
-		//Hit max number of supported periodic threads
-		return 0;
-	}
+  static int pthread_count = 0;
+  
+  if(pthread_count == 0)
+  {
+    WideTimer0A_Init(task, period, priority);
+    pthread_count+=1;
+  }
+  else if(pthread_count == 1)
+  {
+    WideTimer1A_Init(task, period, priority);
+    pthread_count+=1;
+  }
+  else
+  {
+    //Hit max number of supported periodic threads
+    return 0;
+  }
      
   return 1; // replace this line with solution
 };
@@ -524,21 +524,21 @@ int OS_AddPeriodicThread(void(*task)(void), uint32_t period, uint32_t priority)
 //           determines the relative priority of these four threads
 int OS_AddSW1Task(void(*task)(void), uint32_t priority){
   // put Lab 2 (and beyond) solution here
-	static bool used = 0;
-	if(used == true)
-	{
-		return 0;
-	}
-	
-	long sr = StartCritical();
-	
-	// initialize port F with edge triggered ints
-	GPIOPortF_Int_Setup(priority);
+  static bool used = 0;
+  if(used == true)
+  {
+    return 0;
+  }
+  
+  long sr = StartCritical();
+  
+  // initialize port F with edge triggered ints
+  GPIOPortF_Int_Setup(priority);
 
-	SW1Task = task;
-	
-	EndCritical(sr);
-	used = true;
+  SW1Task = task;
+  
+  EndCritical(sr);
+  used = true;
   return 1; // replace this line with solution
 };
 
@@ -558,19 +558,19 @@ int OS_AddSW1Task(void(*task)(void), uint32_t priority){
 int OS_AddSW2Task(void(*task)(void), uint32_t priority){
   // put Lab 2 (and beyond) solution here
   static bool used = false;
-	
-	if(used == true)
-	{
-		return 0;
-	}
-	
-	long sr = StartCritical();
-	// initialize port F with edge triggered ints
-	GPIOPortF_Int_Setup(priority);
-	SW2Task = task;
-	EndCritical(sr);
-	used = true;
-	return 1;
+  
+  if(used == true)
+  {
+    return 0;
+  }
+  
+  long sr = StartCritical();
+  // initialize port F with edge triggered ints
+  GPIOPortF_Int_Setup(priority);
+  SW2Task = task;
+  EndCritical(sr);
+  used = true;
+  return 1;
 };
 
 
@@ -582,17 +582,17 @@ int OS_AddSW2Task(void(*task)(void), uint32_t priority){
 // OS_Sleep(0) implements cooperative multitasking
 void OS_Sleep(uint32_t sleepTime){
   // put Lab 2 (and beyond) solution here
-	DisableInterrupts();
+  DisableInterrupts();
   currentTCB->sleepCounter = sleepTime;
-	
-	// add to sleep list and remove from ready list
-	TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
-	TaskList_PushBack(&sleepList, currentTCB);
-	
+  
+  // add to sleep list and remove from ready list
+  TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
+  TaskList_PushBack(&sleepList, currentTCB);
+  
   //tcbReadyList = tcbReadyList->prev; //move back one otherwisee a thread will be skipped on the next context switch
   
-	OS_Suspend();
-	EnableInterrupts();
+  OS_Suspend();
+  EnableInterrupts();
 };  
 
 // ******** OS_Kill ************
@@ -601,16 +601,16 @@ void OS_Sleep(uint32_t sleepTime){
 // output: none
 void OS_Kill(void){
   // put Lab 2 (and beyond) solution here
-	DisableInterrupts();
-	
-	currentTCB->valid = false;
-	//remove head from linked list
-	TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
+  DisableInterrupts();
+  
+  currentTCB->valid = false;
+  //remove head from linked list
+  TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
 
-	OS_Suspend();
-	EnableInterrupts();
-	//should immedietly context switch to next thread
-	
+  OS_Suspend();
+  EnableInterrupts();
+  //should immedietly context switch to next thread
+  
     
 }; 
 
@@ -624,7 +624,7 @@ void OS_Kill(void){
 void OS_Suspend(void){
   // put Lab 2 (and beyond) solution here
  
-	ContextSwitch();
+  ContextSwitch();
 
 };
   
@@ -644,13 +644,13 @@ void OS_Suspend(void){
 
 void OS_Fifo_Init(uint32_t size){
   // put Lab 2 (and beyond) solution here
-	size = (size < OS_FIFO_SIZE_MAX) ? size: OS_FIFO_SIZE_MAX;//input size checking 
-	OS_Fifo_Size_v = size; //user defined size
-	OS_InitSemaphore(&OS_Fifo_mutex, 1);
-	OS_InitSemaphore(&OS_Fifo_Size_Sema, 0);
-	OS_Fifo_Get_Pt = OS_Fifo_Put_Pt = &OS_Fifo_Arr[0]; //starts at index 0 address
-	
-	
+  size = (size < OS_FIFO_SIZE_MAX) ? size: OS_FIFO_SIZE_MAX;//input size checking 
+  OS_Fifo_Size_v = size; //user defined size
+  OS_InitSemaphore(&OS_Fifo_mutex, 1);
+  OS_InitSemaphore(&OS_Fifo_Size_Sema, 0);
+  OS_Fifo_Get_Pt = OS_Fifo_Put_Pt = &OS_Fifo_Arr[0]; //starts at index 0 address
+  
+  
   
 };
 
@@ -664,22 +664,22 @@ void OS_Fifo_Init(uint32_t size){
 //  this function can not disable or enable interrupts
 int OS_Fifo_Put(uint32_t data){
  
-	if(OS_Fifo_Size_Sema.Value == OS_Fifo_Size_v)
-	{
-		return 0;
-	}
-	
-	*(OS_Fifo_Put_Pt) = data;
-	OS_Fifo_Put_Pt++;
-	if(OS_Fifo_Put_Pt == &OS_Fifo_Arr[OS_Fifo_Size_v])
-	{
-		OS_Fifo_Put_Pt = &OS_Fifo_Arr[0]; //wrap around
-	}
-	
-	OS_Signal(&OS_Fifo_Size_Sema);
-	return 1;
-	
-	};  
+  if(OS_Fifo_Size_Sema.Value == OS_Fifo_Size_v)
+  {
+    return 0;
+  }
+  
+  *(OS_Fifo_Put_Pt) = data;
+  OS_Fifo_Put_Pt++;
+  if(OS_Fifo_Put_Pt == &OS_Fifo_Arr[OS_Fifo_Size_v])
+  {
+    OS_Fifo_Put_Pt = &OS_Fifo_Arr[0]; //wrap around
+  }
+  
+  OS_Signal(&OS_Fifo_Size_Sema);
+  return 1;
+  
+  };  
 
 // ******** OS_Fifo_Get ************
 // Remove one data sample from the Fifo
@@ -688,16 +688,16 @@ int OS_Fifo_Put(uint32_t data){
 // Outputs: data 
 uint32_t OS_Fifo_Get(void){
   // put Lab 2 (and beyond) solution here
-	uint32_t ret_data;
-	OS_Wait(&OS_Fifo_Size_Sema); //wait for available item
-	OS_Wait(&OS_Fifo_mutex); //lock fifo once available
-	ret_data = *(OS_Fifo_Get_Pt);
-	OS_Fifo_Get_Pt++;
-	if(OS_Fifo_Get_Pt == &OS_Fifo_Arr[OS_Fifo_Size_v])
-	{
-		OS_Fifo_Get_Pt = &OS_Fifo_Arr[0]; //loop around
-	}
-	OS_Signal(&OS_Fifo_mutex);
+  uint32_t ret_data;
+  OS_Wait(&OS_Fifo_Size_Sema); //wait for available item
+  OS_Wait(&OS_Fifo_mutex); //lock fifo once available
+  ret_data = *(OS_Fifo_Get_Pt);
+  OS_Fifo_Get_Pt++;
+  if(OS_Fifo_Get_Pt == &OS_Fifo_Arr[OS_Fifo_Size_v])
+  {
+    OS_Fifo_Get_Pt = &OS_Fifo_Arr[0]; //loop around
+  }
+  OS_Signal(&OS_Fifo_mutex);
   return ret_data; // replace this line with solution
 };
 
@@ -721,9 +721,9 @@ int32_t OS_Fifo_Size(void){
 // Outputs: none
 void OS_MailBox_Init(void){
   //set up 2 semaphores
-	
+  
   OS_InitSemaphore(&OS_Mail_Send_Sema, 0);
-	OS_InitSemaphore(&OS_Mail_Ack_Sema, 1);
+  OS_InitSemaphore(&OS_Mail_Ack_Sema, 1);
 };
 
 // ******** OS_MailBox_Send ************
@@ -735,9 +735,9 @@ void OS_MailBox_Init(void){
 void OS_MailBox_Send(uint32_t data){
   // put Lab 2 (and beyond) solution here
   // put solution here
-	OS_Wait(&OS_Mail_Ack_Sema);
-	OS_Mail_data = data;
-	OS_Signal(&OS_Mail_Send_Sema);
+  OS_Wait(&OS_Mail_Ack_Sema);
+  OS_Mail_data = data;
+  OS_Signal(&OS_Mail_Send_Sema);
 };
 
 // ******** OS_MailBox_Recv ************
@@ -749,10 +749,10 @@ void OS_MailBox_Send(uint32_t data){
 uint32_t OS_MailBox_Recv(void){
   // put Lab 2 (and beyond) solution here
   uint32_t ret_data;
-	OS_Wait(&OS_Mail_Send_Sema);
-	ret_data = OS_Mail_data;
-	OS_Signal(&OS_Mail_Ack_Sema);
-	return ret_data;
+  OS_Wait(&OS_Mail_Send_Sema);
+  ret_data = OS_Mail_data;
+  OS_Signal(&OS_Mail_Ack_Sema);
+  return ret_data;
 };
 
 // ******** OS_Time ************
@@ -764,11 +764,11 @@ uint32_t OS_MailBox_Recv(void){
 //   this function and OS_TimeDifference have the same resolution and precision 
 uint32_t OS_Time(void){
   // put Lab 2 (and beyond) solution here
-	
-	// make sure this has no critical section, so we can call it from EnableInterrupts(), DisableInterrupts(), StartCritical(), and EndCritical()	
-	long sr = StartCritical();
-	uint32_t retval = systemTime * (NVIC_ST_RELOAD_R + 1) + (NVIC_ST_RELOAD_R - NVIC_ST_CURRENT_R);
-	EndCritical(sr);
+  
+  // make sure this has no critical section, so we can call it from EnableInterrupts(), DisableInterrupts(), StartCritical(), and EndCritical()  
+  long sr = StartCritical();
+  uint32_t retval = systemTime * (NVIC_ST_RELOAD_R + 1) + (NVIC_ST_RELOAD_R - NVIC_ST_CURRENT_R);
+  EndCritical(sr);
   return retval;
 };
 
@@ -797,33 +797,33 @@ void OS_UpdateSleep(void)
     return;
   }
   
-	TCBType *start_tcb = sleepList;
-	
-	do
-	{
-		if (sleepList->sleepCounter == 0) {
-			TCBType *wakeTcb = TaskList_PopFront(&sleepList);
-			TaskList_PushBack(&(tcbReadyList[wakeTcb->priority]), wakeTcb);
-		}
+  TCBType *start_tcb = sleepList;
+  
+  do
+  {
+    if (sleepList->sleepCounter == 0) {
+      TCBType *wakeTcb = TaskList_PopFront(&sleepList);
+      TaskList_PushBack(&(tcbReadyList[wakeTcb->priority]), wakeTcb);
+    }
     //handle case if PopFront causes an empty sleep list
-		if(sleepList == NULL)
+    if(sleepList == NULL)
     {
       break; 
-		}
+    }
     else //if more elements then decrement and continue
     {
       sleepList->sleepCounter--;
       TaskList_Iterate(&sleepList);
     }
-	}
-	while(start_tcb != sleepList);
-	
+  }
+  while(start_tcb != sleepList);
+  
 }
 
 
 // private function for incrementing system time
 static void OS_IncrementMsTime(void) {
-	systemTime++;
+  systemTime++;
 }
 
 // ******** OS_ClearMsTime ************
@@ -833,7 +833,7 @@ static void OS_IncrementMsTime(void) {
 // You are free to change how this works
 void OS_ClearMsTime(void){
   // put Lab 1 solution here
-	msTimeOffset = systemTime;
+  msTimeOffset = systemTime;
 };
 
 // ******** OS_MsTime ************
@@ -859,19 +859,19 @@ uint32_t OS_MsTime(void){
 void OS_Launch(uint32_t theTimeSlice){
   // put Lab 2 (and beyond) solution here
   if(tcbReadyList[LOW_PRIORITY] == NULL)
-	{
-		return;
-	}
-	
-	else
-	{
-		// initialize Systick for preemptive scheduling
-		SysTick_Init(80000); // 1 ms reload value. Should always be 1ms for correct timing 
+  {
+    return;
+  }
+  
+  else
+  {
+    // initialize Systick for preemptive scheduling
+    SysTick_Init(80000); // 1 ms reload value. Should always be 1ms for correct timing 
     time_slice_ms = theTimeSlice / 80000; //set time slice in whole milliseconds. 
-		OS_ClearMsTime();
+    OS_ClearMsTime();
     currentTCB = tcbReadyList[LOW_PRIORITY];
-		StartOS();
-	}
+    StartOS();
+  }
     
 };
 
@@ -932,19 +932,19 @@ static uint32_t totalIntrTime = 0;
 static uint32_t maxIntrTime = 0;
 
 void OS_TimeLogCPSID(void) {
-	intrTimeStamps[intrTimeStampsIdx++] = OS_Time();
+  intrTimeStamps[intrTimeStampsIdx++] = OS_Time();
 }
 
 void OS_TimeLogCPSIE(void) {
-	uint32_t intrTime = OS_Time() - intrTimeStamps[--intrTimeStampsIdx];
-	totalIntrTime += intrTime;
-	maxIntrTime = (maxIntrTime >= intrTime) ? maxIntrTime : intrTime;
+  uint32_t intrTime = OS_Time() - intrTimeStamps[--intrTimeStampsIdx];
+  totalIntrTime += intrTime;
+  maxIntrTime = (maxIntrTime >= intrTime) ? maxIntrTime : intrTime;
 }
 
 uint32_t OS_GetTotalCriticalSectionTime(void) {
-	return totalIntrTime;
+  return totalIntrTime;
 }
 
 uint32_t OS_GetLongestCriticalSectionTime(void) {
-	return maxIntrTime;
+  return maxIntrTime;
 }

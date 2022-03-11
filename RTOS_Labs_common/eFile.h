@@ -107,7 +107,7 @@ int eFile_Delete(const char name[]);  // remove this file
  * @return 0 if successful and 1 on failure (e.g., trouble reading from flash)
  */
 int eFile_DOpen(const char name[]);
-	
+  
 /**
  * @details Retreive directory entry from open directory
  * @param pointers to return file name and size by reference

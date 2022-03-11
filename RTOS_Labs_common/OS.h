@@ -26,7 +26,7 @@
 #define TIME_2MS    (2*TIME_1MS)  
 #define TIME_500US  (TIME_1MS/2)  
 #define TIME_250US  (TIME_1MS/5)  
-#define TIME_10MS		(TIME_1MS * 10)
+#define TIME_10MS    (TIME_1MS * 10)
 
 #define JITTERSIZE 64
 /*Jitter Measurement Variables
@@ -42,15 +42,15 @@ extern uint32_t MaxJitter_2;
  */
 #define DEFAULT_STACK_SIZE 128
 typedef struct TCB {
-	void *sp;
-	struct TCB *prev;
-	struct TCB *next;
-	uint32_t id;
-	uint32_t sleepCounter; //time in milliseconds uses OS_time interrupt to decrement
-	uint32_t priority;
-	void *blocked;
-	bool valid;
-	uint32_t stack[DEFAULT_STACK_SIZE];
+  void *sp;
+  struct TCB *prev;
+  struct TCB *next;
+  uint32_t id;
+  uint32_t sleepCounter; //time in milliseconds uses OS_time interrupt to decrement
+  uint32_t priority;
+  void *blocked;
+  bool valid;
+  uint32_t stack[DEFAULT_STACK_SIZE];
 } TCBType;
 
 /**
@@ -59,7 +59,7 @@ typedef struct TCB {
 struct  Sema4{
   int32_t Value;   // >0 means free, otherwise means busy        
 // add other components here, if necessary to implement blocking
-	TCBType *waiters;
+  TCBType *waiters;
 };
 typedef struct Sema4 Sema4Type;
 

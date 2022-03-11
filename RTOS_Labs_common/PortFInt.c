@@ -13,20 +13,20 @@ void(*SW2Task)(void);
 //Sets up PF4 and PF0 as edge triggered interrupts. TODO LAB 3 CHANGE PRIORITY BASED ON INPUT
 void GPIOPortF_Int_Setup(uint32_t priority)
 {
-	static bool setup = false;
-	
-	if(setup == true)
-	{
-		//if port f already setup then just update priority if higher
-		uint32_t old_pri = NVIC_PRI7_R&0x00FF0000;
-		if((priority << 21) > old_pri)
-		{
-			NVIC_PRI7_R = (NVIC_PRI7_R&0xFF00FFFF)||(priority<<21);
-		}
-		return;
-	}
-	
-	SYSCTL_RCGCGPIO_R |= 0x00000020; // (a) activate clock for port F
+  static bool setup = false;
+  
+  if(setup == true)
+  {
+    //if port f already setup then just update priority if higher
+    uint32_t old_pri = NVIC_PRI7_R&0x00FF0000;
+    if((priority << 21) > old_pri)
+    {
+      NVIC_PRI7_R = (NVIC_PRI7_R&0xFF00FFFF)||(priority<<21);
+    }
+    return;
+  }
+  
+  SYSCTL_RCGCGPIO_R |= 0x00000020; // (a) activate clock for port F
   
   GPIO_PORTF_LOCK_R = 0x4C4F434B;   // 2) unlock GPIO Port F
   GPIO_PORTF_CR_R = 0x11;           // allow changes to PF4 and PF0
@@ -49,24 +49,24 @@ void GPIOPortF_Int_Setup(uint32_t priority)
 
 
 void GPIOPortF_Handler(void){
-	
-	if(GPIO_PORTF_RIS_R&0x10) // PF4 triggered
-	{
-		GPIO_PORTF_ICR_R = 0x10; //ack flag
-		if(SW1Task != 0)
-		{
-			SW1Task();
-		}
-	}
-	
-	if(GPIO_PORTF_RIS_R&0x01) //PF0 triggered (lab3)
-	{
-		GPIO_PORTF_ICR_R = 0x01; //ack flag
-		if(SW2Task != 0)
-		{
-			SW2Task();
-		}
-	}
-	
+  
+  if(GPIO_PORTF_RIS_R&0x10) // PF4 triggered
+  {
+    GPIO_PORTF_ICR_R = 0x10; //ack flag
+    if(SW1Task != 0)
+    {
+      SW1Task();
+    }
+  }
+  
+  if(GPIO_PORTF_RIS_R&0x01) //PF0 triggered (lab3)
+  {
+    GPIO_PORTF_ICR_R = 0x01; //ack flag
+    if(SW2Task != 0)
+    {
+      SW2Task();
+    }
+  }
+  
  
 }

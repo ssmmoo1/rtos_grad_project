@@ -68,18 +68,18 @@
                               // create index implementation FIFO (see FIFO.h)
 AddIndexFifo(Rx, FIFOSIZE, char, FIFOSUCCESS, FIFOFAIL)
 AddIndexFifo(Tx, 1024, char, FIFOSUCCESS, FIFOFAIL)
-	
+  
 Sema4Type RxDataAvailable;
 Sema4Type TxRoomLeft;
 
 // Initialize UART0
 // Baud rate is 115200 bits/sec
 void UART_Init(void){
-	
-	OS_InitSemaphore(&RxDataAvailable, 0);
-	OS_InitSemaphore(&TxRoomLeft, FIFOSIZE);
-	
-	
+  
+  OS_InitSemaphore(&RxDataAvailable, 0);
+  OS_InitSemaphore(&TxRoomLeft, FIFOSIZE);
+  
+  
   SYSCTL_RCGCUART_R |= 0x01;            // activate UART0
   SYSCTL_RCGCGPIO_R |= 0x01;            // activate port A
   RxFifo_Init();                        // initialize empty FIFOs
@@ -112,7 +112,7 @@ void static copyHardwareToSoftware(void){
   while(((UART0_FR_R&UART_FR_RXFE) == 0) && (RxFifo_Size() < (FIFOSIZE - 1))){
     letter = UART0_DR_R;
     RxFifo_Put(letter);
-		OS_Signal(&RxDataAvailable);
+    OS_Signal(&RxDataAvailable);
   }
 }
 // copy from software TX FIFO to hardware TX FIFO
@@ -121,7 +121,7 @@ void static copySoftwareToHardware(void){
   char letter;
   while(((UART0_FR_R&UART_FR_TXFF) == 0) && (TxFifo_Size() > 0)){
     TxFifo_Get(&letter);
-		OS_Signal(&TxRoomLeft);
+    OS_Signal(&TxRoomLeft);
     UART0_DR_R = letter;
   }
 }
@@ -129,8 +129,8 @@ void static copySoftwareToHardware(void){
 // spin if RxFifo is empty
 char UART_InChar(void){
   char letter;
-	OS_Wait(&RxDataAvailable);
-	RxFifo_Get(&letter);
+  OS_Wait(&RxDataAvailable);
+  RxFifo_Get(&letter);
   //while(RxFifo_Get(&letter) == FIFOFAIL){};
   return(letter);
 }
@@ -153,8 +153,8 @@ char UART_InCharNonBlock(void){
 // Output: none
 // spin if TxFifo full
 void UART_OutChar(char data){
-	OS_Wait(&TxRoomLeft);
-	TxFifo_Put(data);
+  OS_Wait(&TxRoomLeft);
+  TxFifo_Put(data);
   //while(TxFifo_Put(data) == FIFOFAIL){};
   UART0_IM_R &= ~UART_IM_TXIM;          // disable TX FIFO interrupt
   copySoftwareToHardware();

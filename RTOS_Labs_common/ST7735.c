@@ -766,13 +766,13 @@ void static commandList(const uint8_t *addr) {
 // Initialization code common to both 'B' and 'R' type displays
 void static commonInit(const uint8_t *cmdList) {
   volatile uint32_t delay;
-	
+  
   ColStart  = RowStart = 0; // May be overridden in init func
 
   SYSCTL_RCGCSSI_R |= 0x01;  // activate SSI0
   SYSCTL_RCGCGPIO_R |= 0x01; // activate port A
   while((SYSCTL_PRGPIO_R&0x01)==0){}; // allow time for clock to start
-	CS_Init();  // defined in eDisk.c, SDC CS
+  CS_Init();  // defined in eDisk.c, SDC CS
 
 
   // toggle RST low to reset; CS low so it'll listen to us
@@ -1406,40 +1406,40 @@ void ST7735_OutUDec2(uint32_t n, uint32_t l){
 //        line    row from top, 0 to 7 for each device
 //        pt      pointer to a null terminated string to be printed
 //        value   signed integer to be printed
-//				en_value enable value printing 
+//        en_value enable value printing 
 //Sema4Type LCDFree;
 //
 void ST7735_Message(uint32_t  d, uint32_t  l, char *pt, int32_t value, uint8_t en_value){
   // write this as part of Labs 1 and 2
-	
+  
 
-	OS_bWait(&LCDFree);
+  OS_bWait(&LCDFree);
 
-	l = (l > 7) ? 7 : l; //make sure line is not out of bounds
-	l = (d == 1) ? l + 7 : l; //offset line if using device 1
-	
-	ST7735_SetCursor(0,l);
-	
-	if(pt != NULL)
-	{
-		ST7735_OutString(pt);
-	}
-	
-	if(en_value)
-	{
-		ST7735_OutChar(' ');
-		if(value < 0)
-		{
-			ST7735_OutChar('-');
-			value*= -1;
-		}
-		ST7735_OutUDec(value);
-	}
+  l = (l > 7) ? 7 : l; //make sure line is not out of bounds
+  l = (d == 1) ? l + 7 : l; //offset line if using device 1
+  
+  ST7735_SetCursor(0,l);
+  
+  if(pt != NULL)
+  {
+    ST7735_OutString(pt);
+  }
+  
+  if(en_value)
+  {
+    ST7735_OutChar(' ');
+    if(value < 0)
+    {
+      ST7735_OutChar('-');
+      value*= -1;
+    }
+    ST7735_OutUDec(value);
+  }
 
-	OS_bSignal(&LCDFree);
+  OS_bSignal(&LCDFree);
 
-	
-	
+  
+  
 }
 
 //-----------------------ST7735_OutUDec4-----------------------
