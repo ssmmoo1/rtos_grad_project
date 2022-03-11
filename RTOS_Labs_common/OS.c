@@ -766,9 +766,9 @@ uint32_t OS_Time(void){
   // put Lab 2 (and beyond) solution here
 	
 	// make sure this has no critical section, so we can call it from EnableInterrupts(), DisableInterrupts(), StartCritical(), and EndCritical()	
-	//long sr = StartCritical();
+	long sr = StartCritical();
 	uint32_t retval = systemTime * (NVIC_ST_RELOAD_R + 1) + (NVIC_ST_RELOAD_R - NVIC_ST_CURRENT_R);
-	//EndCritical(sr);
+	EndCritical(sr);
   return retval;
 };
 
