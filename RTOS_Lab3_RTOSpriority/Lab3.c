@@ -27,13 +27,15 @@
 #define PD1  (*((volatile uint32_t *)0x40007008))
 #define PD2  (*((volatile uint32_t *)0x40007010))
 #define PD3  (*((volatile uint32_t *)0x40007020))
+#define PD6  (*((volatile uint32_t *)0x40007100))
+#define PD7  (*((volatile uint32_t *)0x40007200))
 
 void PortD_Init(void){ 
   SYSCTL_RCGCGPIO_R |= 0x08;       // activate port D
   while((SYSCTL_RCGCGPIO_R&0x08)==0){};      
-  GPIO_PORTD_DIR_R |= 0x0F;        // make PD3-0 output heartbeats
-  GPIO_PORTD_AFSEL_R &= ~0x0F;     // disable alt funct on PD3-0
-  GPIO_PORTD_DEN_R |= 0x0F;        // enable digital I/O on PD3-0
+  GPIO_PORTD_DIR_R |= 0xCF;        // make PD3-0, 6,7 output heartbeats
+  GPIO_PORTD_AFSEL_R &= ~0xCF;     // disable alt funct on PD3-0 6,7
+  GPIO_PORTD_DEN_R |= 0xCF;        // enable digital I/O on PD3-0 ,6,7
   GPIO_PORTD_PCTL_R = ~0x0000FFFF;
   GPIO_PORTD_AMSEL_R &= ~0x0F;;    // disable analog functionality on PD
 }
@@ -92,11 +94,14 @@ void SW2Push(void){
 // measures CPU idle time, i.e. CPU utilization
 // inputs:  none
 // outputs: none
-#define SUBS_PER_MS_G 3636 //times to sub from volatile global to get to 1ms  1.000208ms
+//#define SUBS_PER_MS_G 3636 //times to sub from volatile global to get to 1ms  1.000208ms
+
+#define SUBS_PER_MS_G 2222 //times to sub and toggle to get to 1ms with global var 
 volatile uint32_t IdleCounter_g = 0xFFFFFFFF;
 void Idle(void){
   while(IdleCounter_g > 0)
   {
+    PD0 ^= 0x01;
     IdleCounter_g--;
   }
   OS_Kill();
@@ -123,7 +128,8 @@ void Idle(void){
 #define TASK3_PERIOD 300
 
 //subtracting i 6665 times with a local volatile int is measured to take 1.000025 ms of time. ~1ms worth of work. 
-#define SUBS_PER_MS_L 6665 //times to sub from voltalile local to get to 1ms
+//#define SUBS_PER_MS_L 6665 //times to sub from voltalile local to get to 1ms
+#define SUBS_PER_MS_L 3325 //time to sub and toggle to get to 1 ms of work
 
 void do_ms_work(uint16_t ms) //input number of ms to do work for
 {
@@ -132,31 +138,43 @@ void do_ms_work(uint16_t ms) //input number of ms to do work for
   {
       i--;
   }
-  
 }
+
 
 void dummy_task_1(void)
 {
-  PD0 = 1;
-  do_ms_work(TASK1_TIME);
-  PD0 = 0;
+  volatile uint32_t i = SUBS_PER_MS_L * TASK1_TIME; //volatile is important, without it timing is not consistent
+  while(i > 0) 
+  {
+    PD1 ^= 0x02;
+    i--;
+  }
+  
   OS_Kill();
 }
 
 void dummy_task_2(void)
 {
- PD1 = 0x02;
- do_ms_work(TASK2_TIME);
- PD1 = 0x00;
- OS_Kill();
+ volatile uint32_t i = SUBS_PER_MS_L * TASK2_TIME; //volatile is important, without it timing is not consistent
+  while(i > 0) 
+  {
+    PD2 ^= 0x04;
+    i--;
+  }
+  
+  OS_Kill();
 }
 
 void dummy_task_3(void)
 {
- PD2 = 0x04;
- do_ms_work(TASK3_TIME);
- PD2 = 0x00;
- OS_Kill();
+ volatile uint32_t i = SUBS_PER_MS_L * TASK3_TIME; //volatile is important, without it timing is not consistent
+  while(i > 0) 
+  {
+    PD3 ^= 0x08;
+    i--;
+  }
+  
+  OS_Kill();
 }
 
 void system_stats(void);
@@ -168,7 +186,6 @@ void system_stats(void);
 //takes 5.25 us to run
 void periodic_thread_creator()
 {
-  PD3 = 0x08;
   static uint32_t times_called = 0;
   static bool scheduler_complete = false;
   times_called++;
@@ -185,18 +202,23 @@ void periodic_thread_creator()
   //Spawn periodic tasks
   if(times_called % (TASK1_PERIOD / TASK_SCHED_RES) == 0)
   {
+    PD6 = 0x40;
     OS_AddThread_D(&dummy_task_1, 128, 1, TASK1_PERIOD); //deadline param must match the period in ms
+    PD6 = 0x00;
     
   }
   if(times_called % (TASK2_PERIOD / TASK_SCHED_RES) == 0)
   {
+    PD6 = 0x40;
     OS_AddThread_D(&dummy_task_2, 128, 2, TASK2_PERIOD);
+    PD6 = 0x00;
   }
   if(times_called % (TASK3_PERIOD / TASK_SCHED_RES) == 0)
   {
+    PD6 = 0x40;
     OS_AddThread_D(&dummy_task_3, 128, 3, TASK3_PERIOD); 
+    PD6 = 0x00;
   }
-  PD3 = 0x00;
 }
 
 
@@ -220,7 +242,6 @@ void system_stats(void)
 int realmain(void){ // realmain
   OS_Init();        // initialize, disable interrupts
   PortD_Init();     // debugging profile
-  
   
   MaxJitter_1 = 0;    // in 1us units
   MaxJitter_2 = 0;    // in 1us units
