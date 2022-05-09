@@ -131,6 +131,19 @@ void OS_bSignal(Sema4Type *semaPt);
 int OS_AddThread(void(*task)(void), 
    uint32_t stackSize, uint32_t priority);
 
+
+//******** OS_AddThread_D *************** 
+// add a foregound thread to the scheduler
+// Inputs: pointer to a void/void foreground task
+//         number of bytes allocated for its stack
+//         priority, 0 is highest, 5 is the lowest
+// Outputs: 1 if successful, 0 if this thread can not be added
+// stack size must be divisable by 8 (aligned to double word boundary)
+// In Lab 2, you can ignore both the stackSize and priority fields
+// In Lab 3, you can ignore the stackSize fields
+int OS_AddThread_D(void(*task)(void), 
+   uint32_t stackSize, uint32_t priority, uint32_t deadline);
+
 //******** OS_Id *************** 
 // returns the thread ID for the currently running thread
 // Inputs: none

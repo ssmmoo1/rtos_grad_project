@@ -254,7 +254,7 @@ void OS_Init(void){
     TCBPool[i].valid = false;
   }
   
-  //OS_AddThread(OS_TaskIdle, DEFAULT_STACK_SIZE, LOW_PRIORITY);
+  OS_AddThread(OS_TaskIdle, DEFAULT_STACK_SIZE, LOW_PRIORITY);
 }; 
 
 // ******** OS_InitSemaphore ************
@@ -393,6 +393,62 @@ long* OS_InitStack(long *sp, void(*task)(void))
 // In Lab 3, you can ignore the stackSize fields
 int OS_AddThread(void(*task)(void), 
    uint32_t stackSize, uint32_t priority){
+  // put Lab 2 (and beyond) solution here
+  static uint32_t idCounter = 0;
+  long sr;
+
+  // allocate a TCB
+  TCBType *tcb = NULL;
+  for (uint32_t i = 0; i < MAX_THREADS; ++i) {
+    if (TCBPool[i].valid == false) {
+      tcb = &(TCBPool[i]);
+      break;
+    }
+  }
+  // error if no more TCBs available
+  if (tcb == NULL) {
+    return 0;
+  }
+  
+  // initialize TCB
+  // set up stack pointer
+  tcb->sp = (char *)tcb + sizeof(TCBType) - sizeof(uint32_t);
+  //push fake register values onto stack
+  tcb->sp = OS_InitStack(tcb->sp, task);
+  
+  
+  // increment id counter and set thread id (critical section)
+  sr = StartCritical();
+  tcb->id = idCounter++;
+  EndCritical(sr);
+  // do not start thread sleeping or blocked
+  tcb->sleepCounter = 0;
+  tcb->blocked = NULL;
+  // set priority and mark thread as valid
+  tcb->priority = priority;
+  tcb->valid = true;
+  
+  // add TCB to ready list (critical section)
+  TaskList_PushBack(&(tcbReadyList[priority]), tcb);
+     
+  // success
+  return 1;
+};
+   
+
+
+//******** OS_AddThread *************** 
+// add a foregound thread to the scheduler with a deadline in MS
+// Inputs: pointer to a void/void foreground task
+//         number of bytes allocated for its stack
+//         priority, 0 is highest, 5 is the lowest
+//        deadline, deadline in milliseconds for the task to complete 
+
+// Outputs: 1 if successful, 0 if this thread can not be added
+// stack size must be divisable by 8 (aligned to double word boundary)
+
+//TODO - implement this function to actually use the deadline, it is just a copy of os_addThread right now. 
+int OS_AddThread_D(void(*task)(void), uint32_t stackSize, uint32_t priority, uint32_t deadline_ms){
   // put Lab 2 (and beyond) solution here
   static uint32_t idCounter = 0;
   long sr;
