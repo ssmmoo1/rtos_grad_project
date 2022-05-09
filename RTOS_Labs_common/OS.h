@@ -19,6 +19,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// lowest priority (idle task has this priority)
+#define LOW_PRIORITY 5
+
 /**
  * \brief Times assuming a 80 MHz
  */      
@@ -59,7 +62,7 @@ typedef struct TCB {
 struct  Sema4{
   int32_t Value;   // >0 means free, otherwise means busy        
 // add other components here, if necessary to implement blocking
-  TCBType *waiters;
+  TCBType *waiters[LOW_PRIORITY+1];;
 };
 typedef struct Sema4 Sema4Type;
 
