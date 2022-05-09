@@ -106,7 +106,7 @@ PendSV_Handler
 	; toggle PD3 for profiling
 	;LDR		R0, =PD3
 	;LDR		R1, [R0]
-	;EOR		R1, #0x08
+	;ORR		R1, #0x08
 	;STR		R1, [R0]
 	
 	CPSID	I
@@ -136,7 +136,7 @@ PendSV_Handler
 	; toggle PD3 for profiling
 	;LDR		R0, =PD3
 	;LDR		R1, [R0]
-	;EOR		R1, #0x08
+	;AND		R1, #0x00
 	;STR		R1, [R0]
 	
     BX      LR                 ; Exception return will restore remaining context   

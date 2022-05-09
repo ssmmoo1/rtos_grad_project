@@ -254,7 +254,6 @@ void OS_Init(void){
     TCBPool[i].valid = false;
   }
   
-  OS_AddThread(OS_TaskIdle, DEFAULT_STACK_SIZE, LOW_PRIORITY);
 }; 
 
 // ******** OS_InitSemaphore ************
@@ -650,7 +649,6 @@ void OS_Sleep(uint32_t sleepTime){
   OS_Suspend();
   EnableInterrupts();
 };  
-
 // ******** OS_Kill ************
 // kill the currently running thread, release its TCB and stack
 // input:  none
@@ -658,11 +656,9 @@ void OS_Sleep(uint32_t sleepTime){
 void OS_Kill(void){
   // put Lab 2 (and beyond) solution here
   DisableInterrupts();
-  
   currentTCB->valid = false;
   //remove head from linked list
   TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
-
   OS_Suspend();
   EnableInterrupts();
   //should immedietly context switch to next thread

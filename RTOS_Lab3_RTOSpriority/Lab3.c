@@ -17,15 +17,10 @@
 #define LED_DEBUG
 
 //uint32_t NumCreated;   // number of foreground threads created
-uint32_t IdleCount;    // CPU idle counter
 
 #define PERIOD1 TIME_500US   // DAS 2kHz sampling period in system time units
 #define PERIOD2 TIME_1MS     // PID period in system time units
 
-// Idle reference count for 10ms of completely idle CPU
-// This should really be calibrated in a 10ms delay loop in OS_Init()
-uint32_t IdleCountRef = 30769;
-uint32_t CPUUtil;       // calculated CPU utilization (in 0.01%)
 
 //---------------------User debugging-----------------------
 #define PD0  (*((volatile uint32_t *)0x40007004))
@@ -52,12 +47,8 @@ void PortD_Init(void){
 void ButtonWork(void){
   uint32_t myId = OS_Id(); 
   PD1 ^= 0x02;
-  ST7735_Message(1,0,"NumCreated   =",NumCreated, true); 
   PD1 ^= 0x02;
   OS_Sleep(50);     // set this to sleep for 50msec
-  ST7735_Message(1,1,"CPUUtil 0.01%=",CPUUtil, true);
-  ST7735_Message(1,3,"Jit_1 0.1us =",MaxJitter_1, true);
-  ST7735_Message(1,4,"Jit_2 0.1us =",MaxJitter_2, true);
   PD1 ^= 0x02;
   OS_Kill();  // done, OS does not return from a Kill
 } 
@@ -101,41 +92,42 @@ void SW2Push(void){
 // measures CPU idle time, i.e. CPU utilization
 // inputs:  none
 // outputs: none
+#define SUBS_PER_MS_G 3636 //times to sub from volatile global to get to 1ms  1.000208ms
+volatile uint32_t IdleCounter_g = 0xFFFFFFFF;
 void Idle(void){
-  // measure idle time only for the first 20s for this lab  
-  /*
-  while(IdleCount < 100){
-  IdleCount++;  // measure of CPU idle time
+  while(IdleCounter_g > 0)
+  {
+    IdleCounter_g--;
   }
-  
-  // compute CPU utilization (in 0.01%)
-  CPUUtil = 10000 - (5*IdleCount)/IdleCountRef;
-  
-  #ifdef LED_DEBUG
-  PF1 = 2;
-  #endif
-  */
-  while(1) {
-    // if you do not wish to measure CPU utilization using this idle task
-    // you can execute WaitForInterrupt to put processor to sleep
-    WaitForInterrupt();
-  }
+  OS_Kill();
 }
 
 //--------------end of Task 6-----------------------------
 
 
+
+
 //----------------- Dummy Tasks EDF Scheduler --------------
-//Task Time is in units of milliseconds
-#define TASK1_TIME 1
-#define TASK2_TIME 10
+
+
+
+//Task Time is in units of milliseconds (how long the tasks will take to run)
+//Must be a multiple of TASK_SCHED_RES
+#define TASK1_TIME 10
+#define TASK2_TIME 15
 #define TASK3_TIME 30
 
-//adding i 13335 times is measured to take 1.000333 ms of time. ~1ms worth of work. 
+//Periods for spawning tasks in milliseconds
+#define TASK1_PERIOD 100
+#define TASK2_PERIOD 150
+#define TASK3_PERIOD 300
+
+//subtracting i 6665 times with a local volatile int is measured to take 1.000025 ms of time. ~1ms worth of work. 
+#define SUBS_PER_MS_L 6665 //times to sub from voltalile local to get to 1ms
 
 void do_ms_work(uint16_t ms) //input number of ms to do work for
 {
-  uint32_t i = 13334 * ms;
+  volatile uint32_t i = SUBS_PER_MS_L * ms; //volatile is important, without it timing is not consistent
   while(i > 0) 
   {
       i--;
@@ -167,46 +159,71 @@ void dummy_task_3(void)
  OS_Kill();
 }
 
-
+void system_stats(void);
 //-----------------Peiodic thread scheduler------------------
 //Creates a peridoc task set to run, runss in an interrupt context as a periodic thread
 #define TASK_SCHED_RES 5 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
+#define TASK_RUN_TIME 30000 //time to run the task set for in milliseconds
+
 //takes 5.25 us to run
 void periodic_thread_creator()
 {
   PD3 = 0x08;
   static uint32_t times_called = 0;
+  static bool scheduler_complete = false;
   times_called++;
+ 
+  if(scheduler_complete) return;
   
-  if(times_called % 1 == 0) //5ms period
+  
+  if(times_called > TASK_RUN_TIME/TASK_SCHED_RES)
   {
-    OS_AddThread_D(&dummy_task_1, 128, 3,5); //deadline param must match the period in ms
+    scheduler_complete = true;
+    OS_AddThread(&system_stats, 128, 0);
+  }
+  
+  //Spawn periodic tasks
+  if(times_called % (TASK1_PERIOD / TASK_SCHED_RES) == 0)
+  {
+    OS_AddThread_D(&dummy_task_1, 128, 1, TASK1_PERIOD); //deadline param must match the period in ms
     
   }
-  if(times_called % 5 == 0) //25ms period
+  if(times_called % (TASK2_PERIOD / TASK_SCHED_RES) == 0)
   {
-    OS_AddThread_D(&dummy_task_2, 128, 3, 25); //25sm deadline
+    OS_AddThread_D(&dummy_task_2, 128, 2, TASK2_PERIOD);
   }
-  if(times_called % 10 == 0) //50ms period
+  if(times_called % (TASK3_PERIOD / TASK_SCHED_RES) == 0)
   {
-    OS_AddThread_D(&dummy_task_3, 128, 3, 50); 
+    OS_AddThread_D(&dummy_task_3, 128, 3, TASK3_PERIOD); 
   }
   PD3 = 0x00;
 }
 
 
 
+//Compute system stats about our EDF scheduler
+
+void system_stats(void)
+{
+  while(1)
+  {
+    ST7735_Message(0,0,"Done", 0, 0);
+    uint32_t idle_time_ms = (0xFFFFFFFF - IdleCounter_g) / SUBS_PER_MS_G; 
+    ST7735_Message(0, 0, "Units in ms", 0, 0);
+    ST7735_Message(0,1,"Idle Time", idle_time_ms, 1);
+    ST7735_Message(0,2,"Tot. Run Time:", TASK_RUN_TIME, 1);
+  }
+ 
+}
+
 //*******************final user main DEMONTRATE THIS TO TA**********
 int realmain(void){ // realmain
   OS_Init();        // initialize, disable interrupts
   PortD_Init();     // debugging profile
-
+  
   
   MaxJitter_1 = 0;    // in 1us units
   MaxJitter_2 = 0;    // in 1us units
-  
-  IdleCount = 0;
-  CPUUtil = 0;
 
   // attach background tasks
   //OS_AddSW1Task(&SW1Push,2);
@@ -214,7 +231,7 @@ int realmain(void){ // realmain
   OS_AddPeriodicThread(&periodic_thread_creator,TIME_1MS*TASK_SCHED_RES,1); //task to spawn our EDF task set periodically
   OS_AddThread(&Idle, 128, 5);
  
-  OS_Launch(TIME_10MS); // doesn't return, interrupts enabled in here
+  OS_Launch(TIME_1MS); // doesn't return, interrupts enabled in here
   while(1);
   return 0;            // this never executes
 }
@@ -680,11 +697,11 @@ int TestmainCS(void){       // TestmainCS
   OS_Init();           // initialize, disable interrupts
   NumCreated = 0 ;
   NumCreated += OS_AddThread(&ThreadCS,128,0); 
-  OS_Launch(TIME_1MS/10); // 100us, doesn't return, interrupts enabled in here
+  OS_Launch(TIME_1MS); // 100us, doesn't return, interrupts enabled in here
   return 0;             // this never executes
 }
 
-
+//context switch takes 3.708 us 
 
 
 
