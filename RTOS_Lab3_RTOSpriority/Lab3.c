@@ -1,5 +1,37 @@
 // Lab3.c - Grad project demo
 
+//Task Set Scheduler/Visualizer
+//Use with a logic analyzer to view how the tasks are scheduled
+//Supports up to 3 tasks (+ and idle task) with configurable periods and run time
+//Visualize with a logic analyzer, 
+
+//PD0 - Idle Task Will rapdily toggle only when idle task is running 
+//PD1 - Task 1 Will rapidly toggle only when task 1 is running
+//PD2 - Task 2 Will rapidly toggle only when task 2 is running
+//PD3 - Task 3 Will rapidly toggle only when Task 3 is running
+//PD6 - Task 1 Scheduled/Deadline will output a quick pulse when task 1 is scheduled again
+//PD7 - Task 2 Scheduled/Deadline will output a quick pulse when task 2 is scheduled again
+//PB0 - Task 3 Scheduled/Deadline will output a quick pulse when task 3 is scheduled again
+
+//Once the task set is complete it will output stats to the LCD
+
+
+//Used for the Task scheduler
+#define TASK_SCHED_RES 5 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
+
+//Task Time is in units of milliseconds (how long the tasks will take to run)
+//Must be a multiple of TASK_SCHED_RES
+#define TASK1_TIME 30
+#define TASK2_TIME 50
+#define TASK3_TIME 100
+
+//Periods for spawning tasks in milliseconds
+#define TASK1_PERIOD 100
+#define TASK2_PERIOD 200
+#define TASK3_PERIOD 400
+
+
+
 #include <stdint.h>
 #include "../inc/tm4c123gh6pm.h"
 #include "../inc/CortexM.h"
@@ -14,80 +46,51 @@
 #include "../RTOS_Labs_common/Interpreter.h"
 #include "../RTOS_Labs_common/ST7735.h"
 
-#define LED_DEBUG
-
-//uint32_t NumCreated;   // number of foreground threads created
-
-#define PERIOD1 TIME_500US   // DAS 2kHz sampling period in system time units
-#define PERIOD2 TIME_1MS     // PID period in system time units
-
-
-//---------------------User debugging-----------------------
-#define PD0  (*((volatile uint32_t *)0x40007004))
-#define PD1  (*((volatile uint32_t *)0x40007008))
-#define PD2  (*((volatile uint32_t *)0x40007010))
-#define PD3  (*((volatile uint32_t *)0x40007020))
-#define PD6  (*((volatile uint32_t *)0x40007100))
-#define PD7  (*((volatile uint32_t *)0x40007200))
-
+//---------------------Task Set Visualization-----------------------
+#define PD0  (*((volatile uint32_t *)0x40007004)) //idle task on
+#define PD1  (*((volatile uint32_t *)0x40007008)) //task 1 on
+#define PD2  (*((volatile uint32_t *)0x40007010)) //task 2 on
+#define PD3  (*((volatile uint32_t *)0x40007020)) //task 3 on
+#define PD6  (*((volatile uint32_t *)0x40007100)) //task 1 scheudled
+#define PB0  (*((volatile uint32_t *)0x40005004)) //task 2 scheduled
+#define PB1  (*((volatile uint32_t *)0x40005008)) //task 3 scheduled
+  
 void PortD_Init(void){ 
   SYSCTL_RCGCGPIO_R |= 0x08;       // activate port D
   while((SYSCTL_RCGCGPIO_R&0x08)==0){};      
   GPIO_PORTD_DIR_R |= 0xCF;        // make PD3-0, 6,7 output heartbeats
   GPIO_PORTD_AFSEL_R &= ~0xCF;     // disable alt funct on PD3-0 6,7
   GPIO_PORTD_DEN_R |= 0xCF;        // enable digital I/O on PD3-0 ,6,7
-  GPIO_PORTD_PCTL_R = ~0x0000FFFF;
-  GPIO_PORTD_AMSEL_R &= ~0x0F;;    // disable analog functionality on PD
+  GPIO_PORTD_PCTL_R = ~0xFF00FFFF;
+  GPIO_PORTD_AMSEL_R &= ~0xCF;;    // disable analog functionality on PD
 }
 
-//------------------Task 2--------------------------------
-// background thread executes with SW1 button
-// one foreground task created with button push
-// foreground treads run for 2 sec and die
+void PortB_Init(void)
+{
+  SYSCTL_RCGCGPIO_R |= 0x02;       // activate port B
+  while((SYSCTL_RCGCGPIO_R&0x02)==0){};      
+  GPIO_PORTB_DIR_R |= 0x0F;        // make PB3-0, output heartbeats
+  GPIO_PORTB_AFSEL_R &= ~0x0F;     // disable alt funct on PB3-0 
+  GPIO_PORTB_DEN_R |= 0x0F;        // enable digital I/O on PB3-0 
+  GPIO_PORTB_PCTL_R = ~0x0000FFFF;
+  GPIO_PORTB_AMSEL_R &= ~0x0F;;    // disable analog functionality on PB
+    
+  PB0 = 0;
+  PB1 = 0;
+}
 
-// ***********ButtonWork*************
-void ButtonWork(void){
-  uint32_t myId = OS_Id(); 
-  PD1 ^= 0x02;
-  PD1 ^= 0x02;
-  OS_Sleep(50);     // set this to sleep for 50msec
-  PD1 ^= 0x02;
-  OS_Kill();  // done, OS does not return from a Kill
-} 
-
-//************SW1Push*************
-// Called when SW1 Button pushed
-// Adds another foreground task
-// background threads execute once and return
-void SW1Push(void){
-  if(OS_MsTime() > 20){ // debounce
-    if(OS_AddThread(&ButtonWork,100,2)){
-      NumCreated++; 
+uint32_t find_lcm(uint32_t a, uint32_t b)
+{
+  uint32_t max = (a > b) ? a : b;
+  while(1)
+  {
+    if(max % a == 0 && max % b == 0)
+    {
+      return max;
     }
-    OS_ClearMsTime();  // at least 20ms between touches
+    max++;
   }
 }
-
-//************SW2Push*************
-// Called when SW2 Button pushed, Lab 3 only
-// Adds another foreground task
-// background threads execute once and return
-void SW2Push(void){
-  if(OS_MsTime() > 20){ // debounce
-    if(OS_AddThread(&ButtonWork,100,2)){
-      NumCreated++; 
-    }
-    OS_ClearMsTime();  // at least 20ms between touches
-  }
-}
-
-//--------------end of Task 2-----------------------------
-
-
-
-//------------------Task 6--------------------------------
-// foreground idle thread that always runs without waiting or sleeping
-
 //******** Idle Task *************** 
 // foreground thread, runs when nothing else does
 // never blocks, never sleeps, never dies
@@ -95,9 +98,9 @@ void SW2Push(void){
 // inputs:  none
 // outputs: none
 //#define SUBS_PER_MS_G 3636 //times to sub from volatile global to get to 1ms  1.000208ms
-
 #define SUBS_PER_MS_G 2222 //times to sub and toggle to get to 1ms with global var 
-volatile uint32_t IdleCounter_g = 0xFFFFFFFF;
+volatile uint32_t IdleCounter_g = 0xFFFFFFFF; //counter to measure CPU utilization
+
 void Idle(void){
   while(IdleCounter_g > 0)
   {
@@ -107,39 +110,11 @@ void Idle(void){
   OS_Kill();
 }
 
-//--------------end of Task 6-----------------------------
 
-
-
-
-//----------------- Dummy Tasks EDF Scheduler --------------
-
-
-
-//Task Time is in units of milliseconds (how long the tasks will take to run)
-//Must be a multiple of TASK_SCHED_RES
-#define TASK1_TIME 10
-#define TASK2_TIME 15
-#define TASK3_TIME 30
-
-//Periods for spawning tasks in milliseconds
-#define TASK1_PERIOD 100
-#define TASK2_PERIOD 150
-#define TASK3_PERIOD 300
-
-//subtracting i 6665 times with a local volatile int is measured to take 1.000025 ms of time. ~1ms worth of work. 
+//----------------- Dummy Tasks Sets --------------
+//Configure in the defines at the top
 //#define SUBS_PER_MS_L 6665 //times to sub from voltalile local to get to 1ms
 #define SUBS_PER_MS_L 3325 //time to sub and toggle to get to 1 ms of work
-
-void do_ms_work(uint16_t ms) //input number of ms to do work for
-{
-  volatile uint32_t i = SUBS_PER_MS_L * ms; //volatile is important, without it timing is not consistent
-  while(i > 0) 
-  {
-      i--;
-  }
-}
-
 
 void dummy_task_1(void)
 {
@@ -179,21 +154,29 @@ void dummy_task_3(void)
 
 void system_stats(void);
 //-----------------Peiodic thread scheduler------------------
-//Creates a peridoc task set to run, runss in an interrupt context as a periodic thread
-#define TASK_SCHED_RES 5 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
-#define TASK_RUN_TIME 30000 //time to run the task set for in milliseconds
-
-//takes 5.25 us to run
+//Schedules the defined task set
+//Must run as a periodic background thread and it will spawn the tasks according to their defined period
 void periodic_thread_creator()
 {
   static uint32_t times_called = 0;
   static bool scheduler_complete = false;
-  times_called++;
+  
+  //Calculate how long to run
+  uint32_t lcm = TASK3_PERIOD;
+  if(times_called == 0)
+  {
+    //Need to run for LCM of defined periods
+    lcm = find_lcm(TASK1_PERIOD, TASK2_PERIOD);
+    lcm = find_lcm(lcm, TASK3_PERIOD);
+    IdleCounter_g = 0xFFFFFFFF; //reset idle counter
+  }
  
   if(scheduler_complete) return;
   
   
-  if(times_called > TASK_RUN_TIME/TASK_SCHED_RES)
+  
+  
+  if(times_called >= lcm/TASK_SCHED_RES)
   {
     scheduler_complete = true;
     OS_AddThread(&system_stats, 128, 0);
@@ -209,46 +192,57 @@ void periodic_thread_creator()
   }
   if(times_called % (TASK2_PERIOD / TASK_SCHED_RES) == 0)
   {
-    PD6 = 0x40;
+    PB0 = 0x01;
     OS_AddThread_D(&dummy_task_2, 128, 2, TASK2_PERIOD);
-    PD6 = 0x00;
+    PB0 = 0x00;
   }
   if(times_called % (TASK3_PERIOD / TASK_SCHED_RES) == 0)
   {
-    PD6 = 0x40;
+    PB1 = 0x02;
     OS_AddThread_D(&dummy_task_3, 128, 3, TASK3_PERIOD); 
-    PD6 = 0x00;
+    PB1 = 0x00;
   }
+  
+  times_called++;
+  
 }
 
 
 
 //Compute system stats about our EDF scheduler
-
 void system_stats(void)
 {
+  uint32_t lcm;
+  lcm = find_lcm(TASK1_PERIOD, TASK2_PERIOD);
+  lcm = find_lcm(lcm, TASK3_PERIOD);
+  uint32_t idle_util = ((0xFFFFFFFF - IdleCounter_g) / SUBS_PER_MS_G) * 100 / lcm; 
+  uint32_t task1_util = TASK1_TIME * 100 / TASK1_PERIOD;
+  uint32_t task2_util = TASK2_TIME * 100 / TASK2_PERIOD;
+  uint32_t task3_util = TASK3_TIME * 100 / TASK3_PERIOD;
+  uint32_t OS_util = 100 - idle_util - task1_util - task2_util - task3_util;
+  
   while(1)
   {
-    ST7735_Message(0,0,"Done", 0, 0);
-    uint32_t idle_time_ms = (0xFFFFFFFF - IdleCounter_g) / SUBS_PER_MS_G; 
-    ST7735_Message(0, 0, "Units in ms", 0, 0);
-    ST7735_Message(0,1,"Idle Time", idle_time_ms, 1);
-    ST7735_Message(0,2,"Tot. Run Time:", TASK_RUN_TIME, 1);
+    
+    ST7735_Message(0,0, "Task Set Stats %", 0, 0);
+    ST7735_Message(0,1, "Task1 Util:", task1_util, true); 
+    ST7735_Message(0,2, "Task2 Util:", task2_util, true); 
+    ST7735_Message(0,3, "Task3 Util:", task3_util, true); 
+    ST7735_Message(0,4, "Idle Util:", idle_util, true); 
+    ST7735_Message(0,5, "OS Util:", OS_util, true); 
+    
+    ST7735_Message(1, 0, "Run Time MS:", lcm, true);
+    
   }
  
 }
 
-//*******************final user main DEMONTRATE THIS TO TA**********
+
 int realmain(void){ // realmain
   OS_Init();        // initialize, disable interrupts
   PortD_Init();     // debugging profile
-  
-  MaxJitter_1 = 0;    // in 1us units
-  MaxJitter_2 = 0;    // in 1us units
+  PortB_Init();
 
-  // attach background tasks
-  //OS_AddSW1Task(&SW1Push,2);
-  //OS_AddSW2Task(&SW2Push,2);  // added in Lab 3
   OS_AddPeriodicThread(&periodic_thread_creator,TIME_1MS*TASK_SCHED_RES,1); //task to spawn our EDF task set periodically
   OS_AddThread(&Idle, 128, 5);
  
@@ -521,7 +515,7 @@ int Testmain5(void){   // Testmain5
   // Count3 should be very large
   // Count4 increases by 640 every time select is pressed
   NumCreated = 0 ;
-  OS_AddPeriodicThread(&BackgroundThread1e,PERIOD1,0); 
+  OS_AddPeriodicThread(&BackgroundThread1e,TIME_1MS*5,0); 
   OS_AddSW1Task(&BackgroundThread5e,2);
   NumCreated += OS_AddThread(&Thread2e,128,0); // Lab 3 set to highest priority
   NumCreated += OS_AddThread(&Thread3e,128,1); 
