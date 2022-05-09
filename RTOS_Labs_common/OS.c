@@ -24,7 +24,6 @@
 #include "../RTOS_Labs_common/PortFInt.h"
 #include "TaskList.h"
 
-#define LOW_PRIORITY 5
 
 void OS_UpdateSleep(void);
 void OS_IncrementMsTime(void);
@@ -263,7 +262,9 @@ void OS_Init(void){
 void OS_InitSemaphore(Sema4Type *semaPt, int32_t value){
   // put Lab 2 (and beyond) solution here
   semaPt->Value = value;
-  semaPt->waiters = NULL;
+  for (uint32_t i = 0; i < sizeof(semaPt->waiters) / sizeof(semaPt->waiters[0]); ++i) {
+    semaPt->waiters[i] = NULL;
+  }
 }; 
 
 // ******** OS_Wait ************
@@ -281,7 +282,7 @@ void OS_Wait(Sema4Type *semaPt){
     TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
     
     // block this task and add it to the semaphore's list of waiters
-    TaskList_PushBack(&(semaPt->waiters), currentTCB);
+    TaskList_PushBack(&(semaPt->waiters[currentTCB->priority]), currentTCB);
     currentTCB->blocked = (void *)semaPt;
     
     EnableInterrupts();
@@ -301,9 +302,24 @@ void OS_Signal(Sema4Type *semaPt){
   long status = StartCritical();
   if (semaPt->Value < 0) {
     // unblock one waiting thread
-    TCBType *unblock = TaskList_PopFront(&(semaPt->waiters));
-    unblock->blocked = NULL;
-    TaskList_PushBack(&(tcbReadyList[unblock->priority]), unblock);
+    
+    // find highest priority waiting on semaphore
+    int max_pri = LOW_PRIORITY;
+    for(int i = 0; i < LOW_PRIORITY + 1; i++)
+    {
+        if(semaPt->waiters[i] != NULL)
+        {
+          max_pri = i;
+          break;
+        }
+    }
+
+    // pop task from front of list
+    TCBType *unblockedTask = TaskList_PopFront(&(semaPt->waiters[max_pri]));
+
+    // unblock task
+    unblockedTask->blocked = NULL;
+    TaskList_PushBack(&(tcbReadyList[unblockedTask->priority]), unblockedTask);
   }
   semaPt->Value++;
   EndCritical(status);
@@ -323,7 +339,7 @@ void OS_bWait(Sema4Type *semaPt){
   if (semaPt->Value < 0) {
     TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
     // block this task and add it to the semaphore's list of waiters
-    TaskList_PushBack(&(semaPt->waiters), currentTCB);
+    TaskList_PushBack(&(semaPt->waiters[currentTCB->priority]), currentTCB);
     currentTCB->blocked = (void *)semaPt;
     
     EnableInterrupts();
@@ -343,9 +359,24 @@ void OS_bSignal(Sema4Type *semaPt){
   long status = StartCritical();
   if (semaPt->Value < 0) {
     // unblock one waiting thread
-    TCBType *unblock = TaskList_PopFront(&(semaPt->waiters));
-    unblock->blocked = NULL;
-    TaskList_PushBack(&(tcbReadyList[unblock->priority]), unblock);
+    
+    // find highest priority waiting on semaphore
+    int max_pri = LOW_PRIORITY;
+    for(int i = 0; i < LOW_PRIORITY + 1; i++)
+    {
+        if(semaPt->waiters[i] != NULL)
+        {
+          max_pri = i;
+          break;
+        }
+    }
+
+    // pop task from front of list
+    TCBType *unblockedTask = TaskList_PopFront(&(semaPt->waiters[max_pri]));
+
+    // unblock task
+    unblockedTask->blocked = NULL;
+    TaskList_PushBack(&(tcbReadyList[unblockedTask->priority]), unblockedTask);
   }
   semaPt->Value = (semaPt->Value >= 0) ? 1 : semaPt->Value+1; //increment if negative but do not go past 1
   EndCritical(status);
