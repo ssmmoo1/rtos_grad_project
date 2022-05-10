@@ -17,6 +17,7 @@
 
 
 #define task_set_2
+#define USE_EDF true
 
 
 #ifdef task_set_1 
@@ -231,6 +232,13 @@ void periodic_thread_creator()
   {
     scheduler_complete = true;
     OS_AddThread_D(&system_stats, 128, 0, 1000000000);
+    PD6 = 0x40;
+    PD6 = 0x00;
+    PB0 = 0x01;
+    PB0 = 0x00;
+    PB1 = 0x02;
+    PB1 = 0x00;
+    return;
   }
   
   //Spawn periodic tasks
@@ -294,6 +302,15 @@ void system_stats(void)
       ST7735_Message(1, 1, "Scheduling Failed!", 0, false);
     }
     
+    if(USE_EDF)
+    {
+      ST7735_Message(1, 3, "Using EDF", 0, false);
+    }
+    else
+    {
+      ST7735_Message(1, 3, "Using RMS", 0, false);
+    }
+    
     
   }
  
@@ -301,7 +318,7 @@ void system_stats(void)
 
 
 int realmain(void){ // realmain
-  OS_Init(true);        // initialize, disable interrupts
+  OS_Init(USE_EDF);        // initialize, disable interrupts
   PortD_Init();     // debugging profile
   PortB_Init();
 
