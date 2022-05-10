@@ -10,15 +10,15 @@
 //PD2 - Task 2 Will rapidly toggle only when task 2 is running
 //PD3 - Task 3 Will rapidly toggle only when Task 3 is running
 //PD6 - Task 1 Scheduled/Deadline will output a quick pulse when task 1 is scheduled again
-//PD7 - Task 2 Scheduled/Deadline will output a quick pulse when task 2 is scheduled again
-//PB0 - Task 3 Scheduled/Deadline will output a quick pulse when task 3 is scheduled again
+//PB0 - Task 2 Scheduled/Deadline will output a quick pulse when task 2 is scheduled again
+//PB1 - Task 3 Scheduled/Deadline will output a quick pulse when task 3 is scheduled again
 
 //Once the task set is complete it will output stats to the LCD
 
 
 
 
-/*
+
 //90% utilization succeeds with RMS
 //Used for the Task scheduler
 #define TASK_SCHED_RES 1 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
@@ -33,8 +33,8 @@
 #define TASK1_PERIOD 100
 #define TASK2_PERIOD 200
 #define TASK3_PERIOD 400
-*/
 
+/*
 //Fails with RMS
 //Used for the Task scheduler
 #define TASK_SCHED_RES 1 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
@@ -49,7 +49,7 @@
 #define TASK1_PERIOD 10
 #define TASK2_PERIOD 60
 #define TASK3_PERIOD 100
-
+*/
 
 
 #include <stdint.h>
@@ -234,14 +234,14 @@ void periodic_thread_creator()
   if(times_called % (TASK1_PERIOD / TASK_SCHED_RES) == 0)
   {
     PD6 = 0x40;
-    OS_AddThread_D(&dummy_task_1, 128, 3, TASK1_PERIOD); //deadline param must match the period in ms
+    OS_AddThread_D(&dummy_task_1, 128, 1, TASK1_PERIOD); //deadline param must match the period in ms
     PD6 = 0x00;
     
   }
   if(times_called % (TASK2_PERIOD / TASK_SCHED_RES) == 0)
   {
     PB0 = 0x01;
-    OS_AddThread_D(&dummy_task_2, 128, 3, TASK2_PERIOD);
+    OS_AddThread_D(&dummy_task_2, 128, 2, TASK2_PERIOD);
     PB0 = 0x00;
   }
   if(times_called % (TASK3_PERIOD / TASK_SCHED_RES) == 0)
@@ -298,7 +298,7 @@ void system_stats(void)
 
 
 int realmain(void){ // realmain
-  OS_Init(false);        // initialize, disable interrupts
+  OS_Init(true);        // initialize, disable interrupts
   PortD_Init();     // debugging profile
   PortB_Init();
 
