@@ -151,8 +151,7 @@ void OS_Scheduler(void)
       // iterate through each unblocked tcb at this priority
       do {
         uint32_t timeUntilDeadline = tcb->period - ((time - tcb->arrivalTime) % tcb->period);
-        if (timeUntilDeadline < closestDeadline 
-          || (timeUntilDeadline == closestDeadline && tcb->priority < closestTask->priority)) {   // priority is a tie-breaker
+        if (timeUntilDeadline < closestDeadline) {
           closestDeadline = timeUntilDeadline;
           closestTask = tcb;
         }
