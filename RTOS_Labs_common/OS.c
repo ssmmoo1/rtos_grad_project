@@ -39,7 +39,6 @@ static uint32_t msTimeOffset = 0; //used to offset time to 0 when MS time is cle
 static uint32_t time_slice_ms = 1; //number of MS for a time slice. Set in OS_Launch. Systick always at 1 ms
 
 // pool of TCBs to draw from
-#define MAX_THREADS 24
 static TCBType TCBPool[MAX_THREADS];
 
 // TCB ready list
@@ -384,6 +383,93 @@ void OS_bSignal(Sema4Type *semaPt){
   
 }; 
 
+// ******** OS_InitSemaphore ************
+// initialize lock 
+// input:  pointer to a lock
+// output: none
+void OS_InitLock(LockType *lock) {
+  OS_InitSemaphore(&lock->sema, 1);
+  lock->owner = NULL;
+}
+
+// ******** OS_Lock ************
+// lock the shared resource
+// uses priority inheritance protocol
+// input:  pointer to a lock
+// output: none
+void OS_Lock(LockType *lock) {
+  DisableInterrupts();
+  Sema4Type *semaPt = &lock->sema;
+  semaPt->Value--;
+  if (semaPt->Value < 0) {
+    //first remove from ready list
+    TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
+    
+    // block this task and add it to the semaphore's list of waiters
+    TaskList_PushBack(&(semaPt->waiters[currentTCB->priority]), currentTCB);
+    currentTCB->blocked = (void *)semaPt;
+    
+    // boost the owner of the lock
+    if (lock->owner->priority < currentTCB->priority) {
+      lock->owner->priority = currentTCB->priority;
+    }
+    
+    EnableInterrupts();
+    OS_Suspend();
+  }
+  
+  // acquire the lock
+  lock->owner = currentTCB;
+  
+  EnableInterrupts();
+}
+
+
+// ******** OS_Unlock ************
+// unlock the shared resource
+// uses priority inheritance protocol
+// input:  pointer to a lock
+// output: none
+void OS_Unlock(LockType *lock) {
+  
+  if (lock->owner != currentTCB) return; // fail if not owner
+  
+  long status = StartCritical();
+  
+  Sema4Type *semaPt = &lock->sema;
+  
+  if (semaPt->Value < 0) {
+    // unblock one waiting thread
+    
+    // find highest priority waiting on semaphore
+    int max_pri = LOW_PRIORITY;
+    for(int i = 0; i < LOW_PRIORITY + 1; i++)
+    {
+        if(semaPt->waiters[i] != NULL)
+        {
+          max_pri = i;
+          break;
+        }
+    }
+
+    // pop task from front of list
+    TCBType *unblockedTask = TaskList_PopFront(&(semaPt->waiters[max_pri]));
+
+    // unblock task
+    unblockedTask->blocked = NULL;
+    TaskList_PushBack(&(tcbReadyList[unblockedTask->priority]), unblockedTask);
+  }
+  semaPt->Value++;
+  
+  // release lock
+  lock->owner = NULL;
+  
+  // un-boost ourself
+  currentTCB->priority = currentTCB->naturalPriority;
+  
+  EndCritical(status);
+  OS_Suspend();
+}
 
 long* OS_InitStack(long *sp, void(*task)(void))
 {
@@ -456,6 +542,7 @@ int OS_AddThread(void(*task)(void),
   tcb->blocked = NULL;
   // set priority and mark thread as valid
   tcb->priority = priority;
+  tcb->naturalPriority = priority;
   tcb->valid = true;
   
   // add TCB to ready list (critical section)

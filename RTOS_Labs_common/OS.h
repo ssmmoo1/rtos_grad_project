@@ -22,6 +22,9 @@
 // lowest priority (idle task has this priority)
 #define LOW_PRIORITY 5
 
+// maximum number of tasks
+#define MAX_THREADS 24
+
 /**
  * \brief Times assuming a 80 MHz
  */      
@@ -51,6 +54,7 @@ typedef struct TCB {
   uint32_t id;
   uint32_t sleepCounter; //time in milliseconds uses OS_time interrupt to decrement
   uint32_t priority;
+  uint32_t naturalPriority;
   void *blocked;
   bool valid;
   uint32_t stack[DEFAULT_STACK_SIZE];
@@ -65,6 +69,16 @@ struct  Sema4{
   TCBType *waiters[LOW_PRIORITY+1];;
 };
 typedef struct Sema4 Sema4Type;
+
+
+/**
+ * \brief Lock structure. Feel free to change the type of semaphore, there are lots of good solutions
+ */  
+struct  Lock{
+  Sema4Type sema;
+  TCBType *owner;
+};
+typedef struct Lock LockType;
 
 
 /**
