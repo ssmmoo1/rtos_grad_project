@@ -269,7 +269,7 @@ void OS_Jitter_2(uint32_t expected_period){
  */
 void OS_Init(bool useEDF){
   // put Lab 2 (and beyond) solution here
-  useEDF = useEDF;
+  usingEDF = useEDF;
   
   PLL_Init(Bus80MHz);
   ST7735_InitR(INITR_REDTAB); // LCD initialization

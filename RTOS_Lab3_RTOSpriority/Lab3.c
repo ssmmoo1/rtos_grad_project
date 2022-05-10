@@ -16,19 +16,6 @@
 //Once the task set is complete it will output stats to the LCD
 
 
-//Used for the Task scheduler
-#define TASK_SCHED_RES 1 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
-
-//Task Time is in units of milliseconds (how long the tasks will take to run)
-//Must be a multiple of TASK_SCHED_RES
-#define TASK1_TIME 50
-#define TASK2_TIME 40
-#define TASK3_TIME 80
-
-//Periods for spawning tasks in milliseconds
-#define TASK1_PERIOD 100
-#define TASK2_PERIOD 200
-#define TASK3_PERIOD 400
 
 
 /*
@@ -48,7 +35,7 @@
 #define TASK3_PERIOD 400
 */
 
-/*Fails with RMS
+//Fails with RMS
 //Used for the Task scheduler
 #define TASK_SCHED_RES 1 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
 
@@ -62,7 +49,7 @@
 #define TASK1_PERIOD 10
 #define TASK2_PERIOD 60
 #define TASK3_PERIOD 100
-*/
+
 
 
 #include <stdint.h>
@@ -247,14 +234,14 @@ void periodic_thread_creator()
   if(times_called % (TASK1_PERIOD / TASK_SCHED_RES) == 0)
   {
     PD6 = 0x40;
-    OS_AddThread_D(&dummy_task_1, 128, 1, TASK1_PERIOD); //deadline param must match the period in ms
+    OS_AddThread_D(&dummy_task_1, 128, 3, TASK1_PERIOD); //deadline param must match the period in ms
     PD6 = 0x00;
     
   }
   if(times_called % (TASK2_PERIOD / TASK_SCHED_RES) == 0)
   {
     PB0 = 0x01;
-    OS_AddThread_D(&dummy_task_2, 128, 2, TASK2_PERIOD);
+    OS_AddThread_D(&dummy_task_2, 128, 3, TASK2_PERIOD);
     PB0 = 0x00;
   }
   if(times_called % (TASK3_PERIOD / TASK_SCHED_RES) == 0)
