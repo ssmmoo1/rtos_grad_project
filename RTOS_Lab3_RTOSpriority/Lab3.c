@@ -263,22 +263,22 @@ void system_stats(void)
   uint32_t lcm;
   lcm = find_lcm(TASK1_PERIOD, TASK2_PERIOD);
   lcm = find_lcm(lcm, TASK3_PERIOD);
-  uint32_t idle_util = ((0xFFFFFFFF - IdleCounter_g) / SUBS_PER_MS_G) * 100 / lcm; 
-  uint32_t task1_util = TASK1_TIME * 100 / TASK1_PERIOD;
-  uint32_t task2_util = TASK2_TIME * 100 / TASK2_PERIOD;
-  uint32_t task3_util = TASK3_TIME * 100 / TASK3_PERIOD;
-  uint32_t OS_util = 100 - idle_util - task1_util - task2_util - task3_util;
+  uint32_t idle_util = ((0xFFFFFFFF - IdleCounter_g) / SUBS_PER_MS_G) * 1000 / lcm; 
+  uint32_t task1_util = TASK1_TIME * 1000 / TASK1_PERIOD;
+  uint32_t task2_util = TASK2_TIME * 1000 / TASK2_PERIOD;
+  uint32_t task3_util = TASK3_TIME * 1000 / TASK3_PERIOD;
+  uint32_t OS_util = 1000 - idle_util - task1_util - task2_util - task3_util;
   
   while(1)
   {
     
     ST7735_Message(0,0, "Task Set Stats %", 0, 0);
-    ST7735_Message(0,1, "Task1 Util:", task1_util, true); 
-    ST7735_Message(0,2, "Task2 Util:", task2_util, true); 
-    ST7735_Message(0,3, "Task3 Util:", task3_util, true); 
-    ST7735_Message(0,4, "TaskSet Util:", task3_util+task2_util+task1_util, true);
-    ST7735_Message(0,5, "Idle Util:", idle_util, true); 
-    ST7735_Message(0,6, "OS Util:", OS_util, true); 
+    ST7735_Message_Dec(0,1, "Task1 Util:", task1_util, true); 
+    ST7735_Message_Dec(0,2, "Task2 Util:", task2_util, true); 
+    ST7735_Message_Dec(0,3, "Task3 Util:", task3_util, true); 
+    ST7735_Message_Dec(0,4, "TaskSet Util:", task3_util+task2_util+task1_util, true);
+    ST7735_Message_Dec(0,5, "Idle Util:", idle_util, true); 
+    ST7735_Message_Dec(0,6, "OS Util:", OS_util, true); 
     
     ST7735_Message(1, 0, "Run Time MS:", lcm, true);
     
@@ -298,7 +298,7 @@ void system_stats(void)
 
 
 int realmain(void){ // realmain
-  OS_Init(true);        // initialize, disable interrupts
+  OS_Init(false);        // initialize, disable interrupts
   PortD_Init();     // debugging profile
   PortB_Init();
 

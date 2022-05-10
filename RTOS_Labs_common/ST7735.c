@@ -1442,6 +1442,41 @@ void ST7735_Message(uint32_t  d, uint32_t  l, char *pt, int32_t value, uint8_t e
   
 }
 
+//Assumes the least significant digit in value is the 1/10 place and will put a decimal point
+void ST7735_Message_Dec(uint32_t  d, uint32_t  l, char *pt, int32_t value, uint8_t en_value){
+  // write this as part of Labs 1 and 2
+  
+
+  OS_bWait(&LCDFree);
+
+  l = (l > 7) ? 7 : l; //make sure line is not out of bounds
+  l = (d == 1) ? l + 7 : l; //offset line if using device 1
+  
+  ST7735_SetCursor(0,l);
+  
+  if(pt != NULL)
+  {
+    ST7735_OutString(pt);
+  }
+  
+  if(en_value)
+  {
+    ST7735_OutChar(' ');
+    if(value < 0)
+    {
+      ST7735_OutChar('-');
+      value*= -1;
+    }
+    ST7735_OutUDec(value/10);
+    ST7735_OutChar('.');
+    ST7735_OutUDec(value%10);
+  }
+
+  OS_bSignal(&LCDFree);
+  
+}
+
+
 //-----------------------ST7735_OutUDec4-----------------------
 // Output a 32-bit number in unsigned 4-digit decimal format
 // Position determined by ST7735_SetCursor command
