@@ -138,6 +138,8 @@ void OS_Scheduler(void)
     
     // EDF scheduler
     
+    DisableInterrupts();
+    
     // figure out who has the closest dealine
     uint32_t time = OS_MsTime();
     TCBType *closestTask = NULL;
@@ -174,6 +176,8 @@ void OS_Scheduler(void)
     
     // schedule the task
     currentTCB = closestTask;
+    
+    EnableInterrupts();
     
   } else {
     
