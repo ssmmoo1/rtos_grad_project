@@ -382,4 +382,24 @@ int OS_RedirectToUART(void);
  */
  int OS_RedirectToST7735(void);
 
+// ******** OS_InitSemaphore ************
+// initialize lock 
+// input:  pointer to a lock
+// output: none
+void OS_InitLock(LockType *lock);
+
+// ******** OS_Lock ************
+// lock the shared resource
+// uses priority inheritance protocol
+// input:  pointer to a lock
+// output: none
+void OS_Lock(LockType *lock);
+
+// ******** OS_Unlock ************
+// unlock the shared resource
+// uses priority inheritance protocol
+// input:  pointer to a lock
+// output: none
+void OS_Unlock(LockType *lock);
+
 #endif

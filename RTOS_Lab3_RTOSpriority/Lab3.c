@@ -316,6 +316,52 @@ void system_stats(void)
  
 }
 
+/***************************
+ * Priority Inversion tasks
+***************************/
+
+LockType lock;
+
+void task_high(void) {
+  OS_InitLock(&lock);
+  
+  while (1) {
+    OS_Lock(&lock);
+    PF1 ^= 2;
+    PD1 ^= 2;
+    OS_Unlock(&lock);
+    OS_Sleep(100);
+  }
+}
+
+void task_mid(void) {
+  while(1) {
+    for (volatile int i = 0; i < 10000000; ++i);
+    OS_Sleep(1);
+  }
+}
+
+void task_low(void) {
+  while (1) {
+    OS_Lock(&lock);
+    OS_Sleep(5);
+    OS_Unlock(&lock);
+  }
+}
+
+void priorityInversion(void) {
+  OS_Init(false);
+  PortD_Init();
+  LaunchPad_Init();
+  OS_AddThread(task_high, DEFAULT_STACK_SIZE, 1);
+  OS_AddThread(task_mid, DEFAULT_STACK_SIZE, 2);
+  OS_AddThread(task_low, DEFAULT_STACK_SIZE, 3);
+  
+  OS_Launch(TIME_1MS);
+  while(1);
+}
+
+
 
 int realmain(void){ // realmain
   OS_Init(USE_EDF);        // initialize, disable interrupts
