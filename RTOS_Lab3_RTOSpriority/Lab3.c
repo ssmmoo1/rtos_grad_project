@@ -356,6 +356,7 @@ void priorityInversion(void) {
   OS_AddThread(task_high, DEFAULT_STACK_SIZE, 1);
   OS_AddThread(task_mid, DEFAULT_STACK_SIZE, 2);
   OS_AddThread(task_low, DEFAULT_STACK_SIZE, 3);
+  OS_AddThread(&Idle, DEFAULT_STACK_SIZE, 5);
   
   OS_Launch(TIME_1MS);
   while(1);
@@ -849,5 +850,5 @@ int TestmainCS(void){       // TestmainCS
 
 //*******************Trampoline for selecting main to execute**********
 int main(void) {       // main 
-  realmain();
+  priorityInversion();
 }
