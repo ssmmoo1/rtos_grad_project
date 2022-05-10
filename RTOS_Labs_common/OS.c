@@ -465,7 +465,14 @@ void OS_Lock(LockType *lock) {
     
     // boost the owner of the lock
     if (lock->owner->priority < currentTCB->priority) {
+      //Iterate through the owners priority list and move it to front
+      while(tcbReadyList[lock->owner->priority]->id != lock->owner->id)
+      {
+        TaskList_Iterate(&(tcbReadyList[lock->owner->priority]));
+      }
+      TaskList_PopFront(&(tcbReadyList[lock->owner->priority])); //remove the lock owner from their list
       lock->owner->priority = currentTCB->priority;
+      TaskList_PushBack(&(tcbReadyList[lock->owner->priority]), lock->owner); //put owner in higher priority
     }
     
     EnableInterrupts();
@@ -519,7 +526,9 @@ void OS_Unlock(LockType *lock) {
   lock->owner = NULL;
   
   // un-boost ourself
+  TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
   currentTCB->priority = currentTCB->naturalPriority;
+  TaskList_PushBack(&(tcbReadyList[currentTCB->priority]), currentTCB);
   
   EndCritical(status);
   OS_Suspend();
