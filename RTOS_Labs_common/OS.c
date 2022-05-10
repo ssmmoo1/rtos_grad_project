@@ -144,7 +144,7 @@ void OS_Scheduler(void)
     uint32_t closestDeadline = 0xffffffff;
     for (uint32_t i = 0; i < MAX_THREADS; ++i) {
       TCBType *tcb = &TCBPool[i];
-      if (tcb->valid) {
+      if (tcb->valid && tcb->blocked == NULL) {
         uint32_t timeUntilDeadline = tcb->period - ((time - tcb->arrivalTime) % tcb->period);
         if (timeUntilDeadline < closestDeadline 
           || (timeUntilDeadline == closestDeadline && tcb->priority < closestTask->priority)) {   // priority is a tie-breaker
