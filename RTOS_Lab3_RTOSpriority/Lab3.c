@@ -16,9 +16,10 @@
 //Once the task set is complete it will output stats to the LCD
 
 
+#define task_set_2
 
 
-
+#ifdef task_set_1 
 //90% utilization succeeds with RMS
 //Used for the Task scheduler
 #define TASK_SCHED_RES 1 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
@@ -33,8 +34,10 @@
 #define TASK1_PERIOD 100
 #define TASK2_PERIOD 200
 #define TASK3_PERIOD 400
+#endif
 
-/*
+
+#ifdef task_set_2
 //Fails with RMS
 //Used for the Task scheduler
 #define TASK_SCHED_RES 1 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
@@ -49,7 +52,7 @@
 #define TASK1_PERIOD 10
 #define TASK2_PERIOD 60
 #define TASK3_PERIOD 100
-*/
+#endif
 
 
 #include <stdint.h>
@@ -227,7 +230,7 @@ void periodic_thread_creator()
   if(times_called >= lcm/TASK_SCHED_RES)
   {
     scheduler_complete = true;
-    OS_AddThread(&system_stats, 128, 0);
+    OS_AddThread_D(&system_stats, 128, 0, 1000000000);
   }
   
   //Spawn periodic tasks
