@@ -306,7 +306,7 @@ int realmain(void){ // realmain
   PortB_Init();
 
   OS_AddPeriodicThread(&periodic_thread_creator,TIME_1MS*TASK_SCHED_RES,1); //task to spawn our EDF task set periodically
-  OS_AddThread(&Idle, 128, 5);
+  OS_AddThread_D(&Idle, 128, 5, 2000000000);
  
   OS_Launch(TIME_1MS); // doesn't return, interrupts enabled in here
   while(1);
