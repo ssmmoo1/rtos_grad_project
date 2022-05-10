@@ -311,7 +311,7 @@ void system_stats(void)
 
 
 int realmain(void){ // realmain
-  OS_Init();        // initialize, disable interrupts
+  OS_Init(true);        // initialize, disable interrupts
   PortD_Init();     // debugging profile
   PortB_Init();
 
@@ -366,7 +366,7 @@ void Thread3(void){
 }
 
 int Testmain1(void){  // Testmain1
-  OS_Init();          // initialize, disable interrupts
+  OS_Init(false);          // initialize, disable interrupts
   PortD_Init();       // profile user threads
   NumCreated = 0 ;
   NumCreated += OS_AddThread(&Thread1,128,0); 
@@ -408,7 +408,7 @@ void Thread3b(void){
 }
 
 int Testmain2(void){  // Testmain2
-  OS_Init();          // initialize, disable interrupts
+  OS_Init(false);          // initialize, disable interrupts
   PortD_Init();       // profile user threads
   NumCreated = 0 ;
   NumCreated += OS_AddThread(&Thread1b,128,0); 
@@ -457,7 +457,7 @@ void Thread3c(void){
 }
 
 int Testmain3(void){  // Testmain3
-  OS_Init();          // initialize, disable interrupts
+  OS_Init(false);          // initialize, disable interrupts
   PortD_Init();       // profile user threads
   NumCreated = 0 ;
   NumCreated += OS_AddThread(&Thread2c,128,0); 
@@ -522,7 +522,7 @@ void BackgroundThread5d(void){   // called when Select button pushed
       
 int Testmain4(void){   // Testmain4
   Count4 = 0;          
-  OS_Init();           // initialize, disable interrupts
+  OS_Init(false);           // initialize, disable interrupts
   // Count2 + Count5 should equal Count1
   // With priorities, Count5 should be zero 
   // Count4 increases by 64 every time select is pressed
@@ -582,7 +582,7 @@ void BackgroundThread5e(void){   // called when Select button pushed
 
 int Testmain5(void){   // Testmain5
   Count4 = 0;          
-  OS_Init();           // initialize, disable interrupts
+  OS_Init(false);           // initialize, disable interrupts
   // Count1 should exactly equal Count2
   // Count3 should be very large
   // Count4 increases by 640 every time select is pressed
@@ -652,7 +652,7 @@ void TaskB(void){       // called every pB in background
 
 int Testmain6(void){       // Testmain6 Lab 3
   PortD_Init();
-  OS_Init();           // initialize, disable interrupts
+  OS_Init(false);           // initialize, disable interrupts
   NumCreated = 0 ;
   NumCreated += OS_AddThread(&Thread7,128,1); 
   NumCreated += OS_AddThread(&Thread6,128,2); 
@@ -740,7 +740,7 @@ static int32_t result;
 }
 int Testmain7(void){      // Testmain7  Lab 3
   volatile uint32_t delay;
-  OS_Init();           // initialize, disable interrupts
+  OS_Init(false);           // initialize, disable interrupts
   delay = add(3,4);
   PortD_Init();
   SignalCount1 = 0;   // number of times s is signaled
@@ -781,7 +781,7 @@ void ThreadCS(void){       // only thread running
 }
 int TestmainCS(void){       // TestmainCS
   PortD_Init();
-  OS_Init();           // initialize, disable interrupts
+  OS_Init(false);           // initialize, disable interrupts
   NumCreated = 0 ;
   NumCreated += OS_AddThread(&ThreadCS,128,0); 
   OS_Launch(TIME_1MS); // 100us, doesn't return, interrupts enabled in here

@@ -24,6 +24,8 @@
 #include "../RTOS_Labs_common/PortFInt.h"
 #include "TaskList.h"
 
+// keep track of if we are using the EDF scheduler
+static bool usingEDF = false;
 
 void OS_UpdateSleep(void);
 void OS_IncrementMsTime(void);
@@ -39,7 +41,6 @@ static uint32_t msTimeOffset = 0; //used to offset time to 0 when MS time is cle
 static uint32_t time_slice_ms = 1; //number of MS for a time slice. Set in OS_Launch. Systick always at 1 ms
 
 // pool of TCBs to draw from
-#define MAX_THREADS 24
 static TCBType TCBPool[MAX_THREADS];
 
 // TCB ready list
@@ -133,17 +134,45 @@ void OS_Scheduler(void)
   //TaskList_Iterate(&tcbReadyList);
   //currentTCB = tcbReadyList;
   
-  int max_pri = LOW_PRIORITY;
-  for(int i = 0; i < LOW_PRIORITY + 1; i++)
-  {
-      if(tcbReadyList[i] != NULL)
-      {
-        max_pri = i;
-        break;
+  if (usingEDF) {
+    
+    // EDF scheduler
+    
+    // figure out who has the closest dealine
+    uint32_t time = OS_MsTime();
+    TCBType *closestTask = NULL;
+    uint32_t closestDeadline = 0xffffffff;
+    for (uint32_t i = 0; i < MAX_THREADS; ++i) {
+      TCBType *tcb = &TCBPool[i];
+      if (tcb->valid) {
+        uint32_t timeUntilDeadline = tcb->period - ((time - tcb->arrivalTime) % tcb->period);
+        if (timeUntilDeadline < closestDeadline 
+          || (timeUntilDeadline == closestDeadline && tcb->priority < closestTask->priority)) {   // priority is a tie-breaker
+          closestDeadline = timeUntilDeadline;
+          closestTask = tcb;
+        }
       }
+    }
+    
+    // schedule the task
+    currentTCB = closestTask;
+    
+  } else {
+    
+    // normal priority scheduler
+    int max_pri = LOW_PRIORITY;
+    for(int i = 0; i < LOW_PRIORITY + 1; i++)
+    {
+        if(tcbReadyList[i] != NULL)
+        {
+          max_pri = i;
+          break;
+        }
+    }
+    TaskList_Iterate(&(tcbReadyList[max_pri]));
+    currentTCB = tcbReadyList[max_pri];
+    
   }
-  TaskList_Iterate(&(tcbReadyList[max_pri]));
-  currentTCB = tcbReadyList[max_pri];
   
 }
 
@@ -234,12 +263,14 @@ void OS_Jitter_2(uint32_t expected_period){
  * @details  Initialize operating system, disable interrupts until OS_Launch.
  * Initialize OS controlled I/O: serial, ADC, systick, LaunchPad I/O and timers.
  * Interrupts not yet enabled.
- * @param  none
+ * @param  whether or not to use EDF scheduling
  * @return none
  * @brief  Initialize OS
  */
-void OS_Init(void){
+void OS_Init(bool useEDF){
   // put Lab 2 (and beyond) solution here
+  useEDF = useEDF;
+  
   PLL_Init(Bus80MHz);
   ST7735_InitR(INITR_REDTAB); // LCD initialization
   UART_Init(); //UART Init
@@ -384,6 +415,93 @@ void OS_bSignal(Sema4Type *semaPt){
   
 }; 
 
+// ******** OS_InitSemaphore ************
+// initialize lock 
+// input:  pointer to a lock
+// output: none
+void OS_InitLock(LockType *lock) {
+  OS_InitSemaphore(&lock->sema, 1);
+  lock->owner = NULL;
+}
+
+// ******** OS_Lock ************
+// lock the shared resource
+// uses priority inheritance protocol
+// input:  pointer to a lock
+// output: none
+void OS_Lock(LockType *lock) {
+  DisableInterrupts();
+  Sema4Type *semaPt = &lock->sema;
+  semaPt->Value--;
+  if (semaPt->Value < 0) {
+    //first remove from ready list
+    TaskList_PopFront(&(tcbReadyList[currentTCB->priority]));
+    
+    // block this task and add it to the semaphore's list of waiters
+    TaskList_PushBack(&(semaPt->waiters[currentTCB->priority]), currentTCB);
+    currentTCB->blocked = (void *)semaPt;
+    
+    // boost the owner of the lock
+    if (lock->owner->priority < currentTCB->priority) {
+      lock->owner->priority = currentTCB->priority;
+    }
+    
+    EnableInterrupts();
+    OS_Suspend();
+  }
+  
+  // acquire the lock
+  lock->owner = currentTCB;
+  
+  EnableInterrupts();
+}
+
+
+// ******** OS_Unlock ************
+// unlock the shared resource
+// uses priority inheritance protocol
+// input:  pointer to a lock
+// output: none
+void OS_Unlock(LockType *lock) {
+  
+  if (lock->owner != currentTCB) return; // fail if not owner
+  
+  long status = StartCritical();
+  
+  Sema4Type *semaPt = &lock->sema;
+  
+  if (semaPt->Value < 0) {
+    // unblock one waiting thread
+    
+    // find highest priority waiting on semaphore
+    int max_pri = LOW_PRIORITY;
+    for(int i = 0; i < LOW_PRIORITY + 1; i++)
+    {
+        if(semaPt->waiters[i] != NULL)
+        {
+          max_pri = i;
+          break;
+        }
+    }
+
+    // pop task from front of list
+    TCBType *unblockedTask = TaskList_PopFront(&(semaPt->waiters[max_pri]));
+
+    // unblock task
+    unblockedTask->blocked = NULL;
+    TaskList_PushBack(&(tcbReadyList[unblockedTask->priority]), unblockedTask);
+  }
+  semaPt->Value++;
+  
+  // release lock
+  lock->owner = NULL;
+  
+  // un-boost ourself
+  currentTCB->priority = currentTCB->naturalPriority;
+  
+  EndCritical(status);
+  OS_Suspend();
+}
 
 long* OS_InitStack(long *sp, void(*task)(void))
 {
@@ -456,6 +574,7 @@ int OS_AddThread(void(*task)(void),
   tcb->blocked = NULL;
   // set priority and mark thread as valid
   tcb->priority = priority;
+  tcb->naturalPriority = priority;
   tcb->valid = true;
   
   // add TCB to ready list (critical section)
@@ -513,6 +632,10 @@ int OS_AddThread_D(void(*task)(void), uint32_t stackSize, uint32_t priority, uin
   // set priority and mark thread as valid
   tcb->priority = priority;
   tcb->valid = true;
+  
+  // update period and arrival time for EDF
+  tcb->period = deadline_ms;
+  tcb->arrivalTime = OS_MsTime();
   
   // add TCB to ready list (critical section)
   TaskList_PushBack(&(tcbReadyList[priority]), tcb);
@@ -952,6 +1075,14 @@ void OS_Launch(uint32_t theTimeSlice){
     SysTick_Init(80000); // 1 ms reload value. Should always be 1ms for correct timing 
     time_slice_ms = theTimeSlice / 80000; //set time slice in whole milliseconds. 
     OS_ClearMsTime();
+    
+    // update all arrival times for tasks created before OS launch
+    for (uint32_t i = 0; i < MAX_THREADS; ++i) {
+      if (TCBPool[i].valid) {
+        TCBPool[i].arrivalTime = 0;
+      }
+    }
+    
     currentTCB = tcbReadyList[LOW_PRIORITY];
     StartOS();
   }

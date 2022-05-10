@@ -22,6 +22,9 @@
 // lowest priority (idle task has this priority)
 #define LOW_PRIORITY 5
 
+// maximum number of tasks
+#define MAX_THREADS 24
+
 /**
  * \brief Times assuming a 80 MHz
  */      
@@ -51,6 +54,9 @@ typedef struct TCB {
   uint32_t id;
   uint32_t sleepCounter; //time in milliseconds uses OS_time interrupt to decrement
   uint32_t priority;
+  uint32_t naturalPriority;
+  uint32_t arrivalTime;
+  uint32_t period;
   void *blocked;
   bool valid;
   uint32_t stack[DEFAULT_STACK_SIZE];
@@ -62,9 +68,19 @@ typedef struct TCB {
 struct  Sema4{
   int32_t Value;   // >0 means free, otherwise means busy        
 // add other components here, if necessary to implement blocking
-  TCBType *waiters[LOW_PRIORITY+1];;
+  TCBType *waiters[LOW_PRIORITY+1];
 };
 typedef struct Sema4 Sema4Type;
+
+
+/**
+ * \brief Lock structure. Feel free to change the type of semaphore, there are lots of good solutions
+ */  
+struct  Lock{
+  Sema4Type sema;
+  TCBType *owner;
+};
+typedef struct Lock LockType;
 
 
 /**
@@ -80,11 +96,11 @@ void OS_Jitter_2(uint32_t expected_period);
  * @details  Initialize operating system, disable interrupts until OS_Launch.
  * Initialize OS controlled I/O: serial, ADC, systick, LaunchPad I/O and timers.
  * Interrupts not yet enabled.
- * @param  none
+ * @param  whether or not to use EDF scheduling
  * @return none
  * @brief  Initialize OS
  */
-void OS_Init(void); 
+void OS_Init(bool useEDF); 
 
 // ******** OS_InitSemaphore ************
 // initialize semaphore 
