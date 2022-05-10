@@ -142,6 +142,24 @@ void OS_Scheduler(void)
     uint32_t time = OS_MsTime();
     TCBType *closestTask = NULL;
     uint32_t closestDeadline = 0xffffffff;
+    
+    // iterate through priorities
+    for (uint32_t prio = 0; prio <= LOW_PRIORITY; ++prio) {
+      TCBType *firstHead = tcbReadyList[prio];
+      TCBType *tcb = firstHead;
+      
+      // iterate through each unblocked tcb at this priority
+      do {
+        uint32_t timeUntilDeadline = tcb->period - ((time - tcb->arrivalTime) % tcb->period);
+        if (timeUntilDeadline < closestDeadline 
+          || (timeUntilDeadline == closestDeadline && tcb->priority < closestTask->priority)) {   // priority is a tie-breaker
+          closestDeadline = timeUntilDeadline;
+          closestTask = tcb;
+        }
+      } while (firstHead != tcb);
+    }
+    
+    /*
     for (uint32_t i = 0; i < MAX_THREADS; ++i) {
       TCBType *tcb = &TCBPool[i];
       if (tcb->valid && tcb->blocked == NULL) {
@@ -153,6 +171,7 @@ void OS_Scheduler(void)
         }
       }
     }
+    */
     
     // schedule the task
     currentTCB = closestTask;
