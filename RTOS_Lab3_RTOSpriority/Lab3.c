@@ -17,19 +17,52 @@
 
 
 //Used for the Task scheduler
-#define TASK_SCHED_RES 5 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
+#define TASK_SCHED_RES 1 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
 
 //Task Time is in units of milliseconds (how long the tasks will take to run)
 //Must be a multiple of TASK_SCHED_RES
-#define TASK1_TIME 30
-#define TASK2_TIME 50
-#define TASK3_TIME 100
+#define TASK1_TIME 50
+#define TASK2_TIME 40
+#define TASK3_TIME 80
 
 //Periods for spawning tasks in milliseconds
 #define TASK1_PERIOD 100
 #define TASK2_PERIOD 200
 #define TASK3_PERIOD 400
 
+
+/*
+//90% utilization succeeds with RMS
+//Used for the Task scheduler
+#define TASK_SCHED_RES 1 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
+
+//Task Time is in units of milliseconds (how long the tasks will take to run)
+//Must be a multiple of TASK_SCHED_RES
+#define TASK1_TIME 50
+#define TASK2_TIME 40
+#define TASK3_TIME 80
+
+//Periods for spawning tasks in milliseconds
+#define TASK1_PERIOD 100
+#define TASK2_PERIOD 200
+#define TASK3_PERIOD 400
+*/
+
+/*Fails with RMS
+//Used for the Task scheduler
+#define TASK_SCHED_RES 1 //time resolution of when we can spawn periodic tasks in MS. Don't want it too frequently 
+
+//Task Time is in units of milliseconds (how long the tasks will take to run)
+//Must be a multiple of TASK_SCHED_RES
+#define TASK1_TIME 3
+#define TASK2_TIME 25
+#define TASK3_TIME 25
+
+//Periods for spawning tasks in milliseconds
+#define TASK1_PERIOD 10
+#define TASK2_PERIOD 60
+#define TASK3_PERIOD 100
+*/
 
 
 #include <stdint.h>
@@ -116,39 +149,68 @@ void Idle(void){
 //#define SUBS_PER_MS_L 6665 //times to sub from voltalile local to get to 1ms
 #define SUBS_PER_MS_L 3325 //time to sub and toggle to get to 1 ms of work
 
+bool schedulable = true;
+
+bool task_1_lock = false;
 void dummy_task_1(void)
 {
+  if(task_1_lock == true)
+  {
+    schedulable = false;
+  }
+  else
+  {
+    task_1_lock = true;
+  }
   volatile uint32_t i = SUBS_PER_MS_L * TASK1_TIME; //volatile is important, without it timing is not consistent
   while(i > 0) 
   {
     PD1 ^= 0x02;
     i--;
   }
-  
+  task_1_lock = false;
   OS_Kill();
 }
 
+bool task_2_lock = false;
 void dummy_task_2(void)
 {
+  if(task_2_lock == true)
+  {
+    schedulable = false;
+  }
+  else
+  {
+    task_2_lock = true;
+  }
  volatile uint32_t i = SUBS_PER_MS_L * TASK2_TIME; //volatile is important, without it timing is not consistent
   while(i > 0) 
   {
     PD2 ^= 0x04;
     i--;
   }
-  
+  task_2_lock = false;
   OS_Kill();
 }
 
+bool task_3_lock = false;
 void dummy_task_3(void)
 {
+  if(task_3_lock == true)
+  {
+    schedulable = false;
+  }
+  else
+  {
+    task_3_lock = true;
+  }
  volatile uint32_t i = SUBS_PER_MS_L * TASK3_TIME; //volatile is important, without it timing is not consistent
   while(i > 0) 
   {
     PD3 ^= 0x08;
     i--;
   }
-  
+  task_3_lock = false;
   OS_Kill();
 }
 
@@ -160,9 +222,8 @@ void periodic_thread_creator()
 {
   static uint32_t times_called = 0;
   static bool scheduler_complete = false;
-  
+  static uint32_t lcm = TASK3_PERIOD;
   //Calculate how long to run
-  uint32_t lcm = TASK3_PERIOD;
   if(times_called == 0)
   {
     //Need to run for LCM of defined periods
@@ -228,10 +289,21 @@ void system_stats(void)
     ST7735_Message(0,1, "Task1 Util:", task1_util, true); 
     ST7735_Message(0,2, "Task2 Util:", task2_util, true); 
     ST7735_Message(0,3, "Task3 Util:", task3_util, true); 
-    ST7735_Message(0,4, "Idle Util:", idle_util, true); 
-    ST7735_Message(0,5, "OS Util:", OS_util, true); 
+    ST7735_Message(0,4, "TaskSet Util:", task3_util+task2_util+task1_util, true);
+    ST7735_Message(0,5, "Idle Util:", idle_util, true); 
+    ST7735_Message(0,6, "OS Util:", OS_util, true); 
     
     ST7735_Message(1, 0, "Run Time MS:", lcm, true);
+    
+    if(schedulable)
+    {
+      ST7735_Message(1, 1, "Scheduled Success!", 0, false);
+    }
+    else
+    {
+      ST7735_Message(1, 1, "Scheduling Failed!", 0, false);
+    }
+    
     
   }
  
