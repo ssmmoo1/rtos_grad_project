@@ -138,7 +138,7 @@ void OS_Scheduler(void)
     
     // EDF scheduler
     
-    DisableInterrupts();
+    long sr = StartCritical();
     
     // figure out who has the closest dealine
     uint32_t time = OS_MsTime();
@@ -177,7 +177,7 @@ void OS_Scheduler(void)
     // schedule the task
     currentTCB = closestTask;
     
-    EnableInterrupts();
+    EndCritical(sr);
     
   } else {
     
