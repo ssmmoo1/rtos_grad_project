@@ -464,7 +464,7 @@ void OS_Lock(LockType *lock) {
     currentTCB->blocked = (void *)semaPt;
     
     // boost the owner of the lock
-    if (lock->owner->priority < currentTCB->priority) {
+    if (lock->owner->priority > currentTCB->priority) {
       //Iterate through the owners priority list and move it to front
       while(tcbReadyList[lock->owner->priority]->id != lock->owner->id)
       {

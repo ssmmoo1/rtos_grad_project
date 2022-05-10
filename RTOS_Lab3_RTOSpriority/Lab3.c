@@ -378,7 +378,7 @@ void task_high(void) {
     PF1 ^= 2;
     pi_dummy_task_1();
     OS_Unlock(&lock);
-    OS_Sleep(100);
+    OS_Sleep(10);
   }
 }
 
@@ -474,5 +474,5 @@ int realmain(void){ // realmain
 
 //*******************Trampoline for selecting main to execute**********
 int main(void) {       // main 
-  priorityInversion_lock();
+  priorityInversion_sema();
 }
